@@ -23,7 +23,9 @@ That is the whole install. One file, one line.
 
 ## What it looks like
 
-Fluent bones with its own identity. A navigation pane on the left carries the brand mark under a soft accent glow, a search field, and tabs that can be grouped under collapsible headers with chevrons. On the right, every setting sits in its own rounded card under a section header marked with an accent tick, beneath a page title underlined by a fading accent hairline. Surfaces are lit from above, edges catch light along the top, the window rests on a layered shadow, and a small pulse in the footer keeps the whole thing feeling alive. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while the accent bar grows beside the new item. Toggles glow when they are on.
+Near-black glass. Two soft coloured lights sit in the top corners — by default the accent and a hue-shifted sibling — and a huge, faint version of your logo leans across the bottom-right of the page. The sidebar and every card are translucent, so that light bleeds through them. On the left: the brand mark under a glow, a search field, tabs with emoji icons and count badges, and collapsible groups with chevrons. On the right: tracked small-caps section headers with an accent tick, a page title underlined by a fading accent hairline, and one rounded card per setting. Toggles glow when on; a pulse in the footer keeps it alive. Pressing anything ripples from the point of contact; switching tabs slides the page in.
+
+All of it is configurable from the built-in Settings tab: theme, accent, both glow colours, the watermark, and a tiled background image of your own. The user's choices persist.
 
 Tabs, groups and rows all take an `Icon`, and it can be an emoji — `Icon = "🎯"` — which Roblox renders in full colour, or an `rbxassetid` image, which is tinted to the theme.
 
@@ -69,7 +71,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
 | `Icon` | number/string | — | `rbxassetid` shown in the sidebar and the mobile bubble |
-| `Theme` | string/table | `"Nocturne"` | See Themes |
+| `Theme` | string/table | `"Void"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
 | `Size` | UDim2/Vector2 | 840×580 (560×400 mobile) | Auto-fitted to the screen |
 | `Scale` | number | `1` | Multiplier applied after the auto-fit |
@@ -81,6 +83,8 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `Resizable` | bool | PC only | Bottom-right resize grip |
 | `Search` | bool | `true` | Search field that filters every element in every tab |
 | `Transparency` | number | `0.02` | Window background transparency |
+| `Background` | table | see Background | Ambient glow, watermark, texture |
+| `SectionStyle` | string | `"Caps"` | `"Caps"` for tracked uppercase headers, `"Title"` for sentence case |
 | `Acrylic` | bool | `false` | Blur the game behind the window while it is open (Windows 11 Mica feel). Off by default so gameplay stays readable |
 | `AcrylicStrength` | number | `14` | Blur radius when `Acrylic` is on |
 | `ConfigFolder` | string | Title | Files live in `BPUI/<ConfigFolder>/` |
@@ -102,9 +106,9 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 ### `Window:CreateTab(config)` → Tab
 
-Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠" }`, or just a string. `Icon` is an emoji or an `rbxassetid`.
+Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Badge = 3 }`, or just a string. `Icon` is an emoji or an `rbxassetid`; `Badge` is a count or short text shown in a pill at the right.
 
-Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
 
 ### `Window:CreateGroup(config)` → Group
 
@@ -206,21 +210,39 @@ BPUI:SetFlag("WalkSpeed", 50)
 
 If a config loads before some elements exist — because your script yields, say — those elements pick up their saved value when they are created.
 
+### Background
+
+```lua
+Background = {
+    Ambient = true,                        -- the two corner glows
+    Orb1 = Color3.fromRGB(190, 50, 130),   -- omit to follow the accent
+    Orb2 = Color3.fromRGB(110, 70, 220),   -- omit to follow a hue-shifted accent
+    OrbSize = 620, OrbOpacity = 0.26,
+    Watermark = true,                      -- giant faint brand icon / initials
+    WatermarkAlpha = 0.955,
+    Image = 123456789,                     -- optional tiled texture (rbxassetid)
+    ImageAlpha = 0.92, ImageTileSize = 96,
+}
+```
+
+`Window:SetBackground(partial)` changes any of these live and remembers the result; pass `Orb1 = false` to hand a glow back to the accent. The Settings tab exposes the same controls to the user.
+
 ### Themes
 
-`Nocturne` (default — deep blue-black with a periwinkle accent), `FluentDark` and `FluentLight` (the Windows 11 system palettes), `Obsidian`, `Midnight`, `Nord`, `Crimson`.
+`Void` (default — near-black glass with an orchid accent), `Nocturne` (deep blue-black), `FluentDark` and `FluentLight` (the Windows 11 system palettes), `Obsidian`, `Midnight`, `Nord`, `Crimson`.
 
 ```lua
 BPUI:SetTheme("FluentLight")
 BPUI:SetAccent(Color3.fromRGB(255, 120, 60))
 ```
 
-Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to Nocturne:
+Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to Nocturne (opaque) — set `SidebarAlpha` / `SurfaceAlpha` / `ElementAlpha` between 0 and 1 to make a glass theme:
 
 ```
 Window Sidebar TitleBar Surface SurfaceHover Element ElementHover
 Stroke StrokeSoft Text SubText Muted Accent AccentText
 Success Warning Danger Track KnobOn KnobOff Dark
+SidebarAlpha SurfaceAlpha ElementAlpha
 ```
 
 `KnobOn` is the toggle knob while the switch is on (it sits on the accent, so it should contrast with it) and `KnobOff` is the knob while it is off. `Dark` tells the library which way to angle its edge highlights.

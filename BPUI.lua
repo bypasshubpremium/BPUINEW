@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.3.0",
+    Version = "2.4.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -127,8 +127,39 @@ local MOTION = {
 
 local function rgb(r, g, b) return Color3.fromRGB(r, g, b) end
 
+BPUI.Themes.Void = {
+    Name = "Void",
+    Window       = rgb(10, 10, 13),
+    Sidebar      = rgb(15, 15, 20),
+    TitleBar     = rgb(10, 10, 13),
+    Surface      = rgb(21, 21, 27),
+    SurfaceHover = rgb(28, 28, 36),
+    Element      = rgb(29, 29, 37),
+    ElementHover = rgb(38, 38, 48),
+    Stroke       = rgb(36, 36, 46),
+    StrokeSoft   = rgb(27, 27, 35),
+    Text         = rgb(242, 242, 247),
+    SubText      = rgb(164, 166, 182),
+    Muted        = rgb(106, 108, 124),
+    Accent       = rgb(214, 92, 196),
+    AccentText   = rgb(255, 255, 255),
+    Success      = rgb(84, 214, 150),
+    Warning      = rgb(252, 196, 92),
+    Danger       = rgb(255, 106, 122),
+    Track        = rgb(52, 52, 66),
+    KnobOn       = rgb(255, 255, 255),
+    KnobOff      = rgb(170, 172, 190),
+    SidebarAlpha = 0.55,
+    SurfaceAlpha = 0.28,
+    ElementAlpha = 0.15,
+    Dark         = true,
+}
+
 BPUI.Themes.Nocturne = {
     Name = "Nocturne",
+    SidebarAlpha = 0,
+    SurfaceAlpha = 0,
+    ElementAlpha = 0,
     Window       = rgb(17, 18, 24),
     Sidebar      = rgb(13, 14, 19),
     TitleBar     = rgb(13, 14, 19),
@@ -302,11 +333,12 @@ BPUI.Themes.Crimson = {
     Dark         = true,
 }
 
-local ACTIVE = BPUI.Themes.Nocturne
+local ACTIVE = BPUI.Themes.Void
 
 local function resolveTheme(v)
     local merged = {}
     for k, val in pairs(BPUI.Themes.Nocturne) do merged[k] = val end
+    merged.SidebarAlpha, merged.SurfaceAlpha, merged.ElementAlpha = 0, 0, 0
     local source
     if type(v) == "string" and BPUI.Themes[v] then source = BPUI.Themes[v]
     elseif type(v) == "table" then source = v end
@@ -496,6 +528,49 @@ local function autoSlot(parent, opts)
     local conn = card:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
     task.defer(sync)
     return slot, card, conn
+end
+
+local function hueShift(c, deg)
+    local h, s, v = c:ToHSV()
+    h = (h + deg / 360) % 1
+    return Color3.fromHSV(h, s, v)
+end
+
+local function orb(parent, color, size, centerOpacity, px, py, zindex)
+    local holder = new("Frame", {
+        Name = "Orb",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(px, 0, py, 0),
+        Size = UDim2.new(0, size, 0, size),
+        ZIndex = zindex or 1,
+        Parent = parent,
+    })
+    local layers = 8
+    local per = (1 - math.clamp(centerOpacity or 0.28, 0.02, 0.9)) ^ (1 / layers)
+    for i = 1, layers do
+        local f = (i - 1) / (layers - 1)
+        local s = size * (1 - f * 0.78)
+        local l = new("Frame", {
+            Name = "L",
+            BackgroundColor3 = color,
+            BackgroundTransparency = per,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, s, 0, s),
+            ZIndex = zindex or 1,
+            Parent = holder,
+        })
+        corner(l, RADIUS.pill)
+    end
+    return holder
+end
+
+local function tintOrb(holder, color)
+    for _, l in ipairs(holder:GetChildren()) do
+        if l:IsA("Frame") then l.BackgroundColor3 = color end
+    end
 end
 
 local function isAssetIcon(v)
@@ -1262,10 +1337,38 @@ function BPUI:CreateWindow(config)
     bind(self, mainStroke, "Color", "Stroke")
     self._main = main
 
+    local backdrop = new("Frame", {
+        Name = "Backdrop",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        ZIndex = 1,
+        Parent = main,
+    })
+    self._backdrop = backdrop
+    self._brandIcon = config.Icon
+    self._sectionStyle = config.SectionStyle or "Caps"
+
+    local bgDefaults = { Ambient = true, Watermark = true, ImageAlpha = 0.92 }
+    self._bg = {}
+    for k, v in pairs(bgDefaults) do self._bg[k] = v end
+    if type(config.Background) == "table" then
+        for k, v in pairs(config.Background) do self._bg[k] = v end
+    end
+    if type(settings.Background) == "table" then
+        local sb = settings.Background
+        if sb.Ambient ~= nil then self._bg.Ambient = sb.Ambient end
+        if sb.Watermark ~= nil then self._bg.Watermark = sb.Watermark end
+        if type(sb.Orb1) == "table" then self._bg.Orb1 = Color3.fromRGB(sb.Orb1[1], sb.Orb1[2], sb.Orb1[3]) end
+        if type(sb.Orb2) == "table" then self._bg.Orb2 = Color3.fromRGB(sb.Orb2[1], sb.Orb2[2], sb.Orb2[3]) end
+        if sb.Image ~= nil then self._bg.Image = sb.Image end
+        if sb.ImageAlpha ~= nil then self._bg.ImageAlpha = sb.ImageAlpha end
+    end
+    self:_buildBackground()
+
     local sidebar = new("Frame", {
         Name = "Sidebar",
         BackgroundColor3 = theme.Sidebar,
-        BackgroundTransparency = 0,
+        BackgroundTransparency = theme.SidebarAlpha or 0,
         BorderSizePixel = 0,
         Size = UDim2.new(0, sidebarW, 1, 0),
         Active = true,
@@ -1273,6 +1376,7 @@ function BPUI:CreateWindow(config)
         Parent = main,
     })
     bind(self, sidebar, "BackgroundColor3", "Sidebar")
+    bind(self, sidebar, "BackgroundTransparency", "SidebarAlpha")
     sheen(sidebar, 0.985, nil, 90)
     self._sidebar = sidebar
 
@@ -1413,6 +1517,7 @@ function BPUI:CreateWindow(config)
         })
         corner(searchWrap, RADIUS.md)
         bind(self, searchWrap, "BackgroundColor3", "Element")
+        bind(self, searchWrap, "BackgroundTransparency", "ElementAlpha")
         local ss = stroke(searchWrap, theme.StrokeSoft, 1, 0.35)
         bind(self, ss, "Color", "StrokeSoft")
 
@@ -1886,6 +1991,154 @@ function BPUI:CreateWindow(config)
     return self
 end
 
+function Window:_buildBackground()
+    if self._destroyed or not self._backdrop then return end
+    for _, c in ipairs(self._backdrop:GetChildren()) do c:Destroy() end
+    self._orbs = {}
+    local bg = self._bg
+    local theme = ACTIVE
+
+    if bg.Image and bg.Image ~= false then
+        local img = tostring(bg.Image)
+        if img ~= "" then
+            if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
+            new("ImageLabel", {
+                Name = "Texture",
+                BackgroundTransparency = 1,
+                Image = img,
+                ImageTransparency = math.clamp(bg.ImageAlpha or 0.92, 0, 1),
+                ImageColor3 = theme.Text,
+                ScaleType = bg.ImageTile == false and Enum.ScaleType.Crop or Enum.ScaleType.Tile,
+                TileSize = UDim2.new(0, bg.ImageTileSize or 96, 0, bg.ImageTileSize or 96),
+                Size = UDim2.new(1, 0, 1, 0),
+                ZIndex = 1,
+                Parent = self._backdrop,
+            })
+        end
+    end
+
+    if bg.Ambient then
+        local c1 = bg.Orb1 or theme.Accent
+        local c2 = bg.Orb2 or hueShift(theme.Accent, 48)
+        local size = bg.OrbSize or 620
+        local op = bg.OrbOpacity or 0.26
+        local o1 = orb(self._backdrop, c1, size, op, 0.10, 0.02, 1)
+        local o2 = orb(self._backdrop, c2, size * 0.78, op * 0.8, 0.96, 0.12, 1)
+        self._orbs = {
+            { inst = o1, derived = not bg.Orb1, shift = 0 },
+            { inst = o2, derived = not bg.Orb2, shift = 48 },
+        }
+        if bg.Orb3 then
+            local o3 = orb(self._backdrop, bg.Orb3, size * 0.6, op * 0.6, 0.55, 1.02, 1)
+            table.insert(self._orbs, { inst = o3, derived = false, shift = 0 })
+        end
+    end
+
+    if bg.Watermark then
+        local wm = new("Frame", {
+            Name = "Watermark",
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(1, 1),
+            Position = UDim2.new(1, 70, 1, 90),
+            Size = UDim2.new(0, 460, 0, 460),
+            Rotation = -12,
+            ZIndex = 1,
+            Parent = self._backdrop,
+        })
+        local icon = self._brandIcon
+        local alpha = bg.WatermarkAlpha or 0.955
+        if icon and isAssetIcon(icon) then
+            local img = tostring(icon)
+            if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
+            new("ImageLabel", {
+                BackgroundTransparency = 1,
+                Image = img,
+                ImageColor3 = theme.Text,
+                ImageTransparency = alpha,
+                Size = UDim2.new(1, 0, 1, 0),
+                ZIndex = 1,
+                Parent = wm,
+            })
+        else
+            local label = icon and tostring(icon) or (self._title:sub(1, 2):upper())
+            local tl = new("TextLabel", {
+                BackgroundTransparency = 1,
+                Text = label,
+                Font = FONT.bold,
+                TextSize = 100,
+                TextColor3 = theme.Text,
+                TextTransparency = alpha,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, 220, 0, 110),
+                ZIndex = 1,
+                Parent = wm,
+            })
+            new("UIScale", { Scale = 4.2, Parent = tl })
+        end
+    end
+end
+
+function Window:SetBackground(cfg)
+    if type(cfg) ~= "table" then return end
+    local structural = false
+    for k, v in pairs(cfg) do
+        if k ~= "Orb1" and k ~= "Orb2" then structural = true end
+        self._bg[k] = v
+    end
+    if structural then
+        self:_buildBackground()
+    else
+        for i, o in ipairs(self._orbs or {}) do
+            local key = i == 1 and "Orb1" or "Orb2"
+            if cfg[key] ~= nil and o.inst.Parent then
+                o.derived = not cfg[key]
+                tintOrb(o.inst, cfg[key] or hueShift(ACTIVE.Accent, o.shift))
+            end
+        end
+    end
+    local sb = {
+        Ambient = self._bg.Ambient,
+        Watermark = self._bg.Watermark,
+        Image = self._bg.Image,
+        ImageAlpha = self._bg.ImageAlpha,
+    }
+    local function pack(c) if typeof(c) == "Color3" then return { math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5) } end end
+    sb.Orb1 = pack(self._bg.Orb1)
+    sb.Orb2 = pack(self._bg.Orb2)
+    self._settings.Background = sb
+    self:_saveSettingsLater()
+end
+
+function Window:_saveSettingsLater()
+    self._saveToken = (self._saveToken or 0) + 1
+    local token = self._saveToken
+    task.delay(0.35, function()
+        if self._saveToken == token and not self._destroyed then self:_saveSettings() end
+    end)
+end
+
+function Window:GetBackground() return self._bg end
+
+function Window:_retintBackground()
+    for _, o in ipairs(self._orbs or {}) do
+        if o.derived and o.inst.Parent then
+            tintOrb(o.inst, hueShift(ACTIVE.Accent, o.shift))
+        end
+    end
+    if self._backdrop then
+        local wm = self._backdrop:FindFirstChild("Watermark")
+        if wm then
+            for _, d in ipairs(wm:GetChildren()) do
+                if d:IsA("TextLabel") then d.TextColor3 = ACTIVE.Text
+                elseif d:IsA("ImageLabel") then d.ImageColor3 = ACTIVE.Text end
+            end
+        end
+        local tex = self._backdrop:FindFirstChild("Texture")
+        if tex then tex.ImageColor3 = ACTIVE.Text end
+    end
+end
+
 function Window:_showTooltip(str, anchor)
     if IS_MOBILE or self._destroyed or not self._tip then return end
     if not str or str == "" then return end
@@ -2011,6 +2264,46 @@ local function buildTab(w, container, config, group)
         Parent = button,
     })
     tab._label = label
+
+    local badge = new("Frame", {
+        Name = "Badge",
+        BackgroundColor3 = theme.Element,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 22, 0, 18),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Visible = false,
+        ZIndex = 6,
+        Parent = button,
+    })
+    corner(badge, RADIUS.pill)
+    bind(tab, badge, "BackgroundColor3", "Element")
+    local badgeText = text({
+        Text = "",
+        Font = FONT.bold,
+        TextSize = 10,
+        TextColor3 = theme.SubText,
+        Size = UDim2.new(0, 0, 1, 0),
+        AutomaticSize = Enum.AutomaticSize.X,
+        ZIndex = 7,
+        Parent = badge,
+    })
+    pad(badge, 0, 7, 0, 7)
+    bind(tab, badgeText, "TextColor3", "SubText")
+    tab._badge, tab._badgeText = badge, badgeText
+    function tab:SetBadge(v)
+        local lx = label.Position.X.Offset
+        if v == nil or v == false or v == "" then
+            badge.Visible = false
+            label.Size = UDim2.new(1, -(lx + 10), 1, 0)
+            return
+        end
+        badgeText.Text = tostring(v)
+        badge.Visible = true
+        label.Size = UDim2.new(1, -(lx + 44), 1, 0)
+    end
+    if config.Badge ~= nil then tab:SetBadge(config.Badge) end
 
     local page = new("ScrollingFrame", {
         Name = "Page_" .. name,
@@ -2307,6 +2600,7 @@ function Tab:SetIcon(icon)
     local labelX = 12 + inset + (ico and w_ or 0)
     self._label.Position = UDim2.new(0, labelX, 0, 0)
     self._label.Size = UDim2.new(1, -(labelX + 10), 1, 0)
+    if self._badge and self._badge.Visible then self:SetBadge(self._badgeText.Text) end
 end
 
 function Tab:CreateSection(config)
@@ -2355,11 +2649,12 @@ function Tab:CreateSection(config)
         })
         corner(tick, RADIUS.pill)
         bind(section, tick, "BackgroundColor3", "Accent")
+        local caps = (self._window._sectionStyle or "Caps") == "Caps"
         local header = text({
-            Text = config.Name,
-            Font = FONT.medium,
-            TextSize = 13,
-            TextColor3 = theme.Text,
+            Text = caps and spaced(tostring(config.Name):upper()) or config.Name,
+            Font = caps and FONT.bold or FONT.medium,
+            TextSize = caps and 10 or 13,
+            TextColor3 = caps and theme.Muted or theme.Text,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Bottom,
             Position = UDim2.new(0, 10, 0, 0),
@@ -2367,9 +2662,10 @@ function Tab:CreateSection(config)
             ZIndex = 2,
             Parent = headWrap,
         })
-        bind(section, header, "TextColor3", "Text")
+        bind(section, header, "TextColor3", caps and "Muted" or "Text")
         section._header = header
         section._headerRaw = config.Name
+        section._caps = caps
     end
 
     table.insert(self._sections, section)
@@ -2379,7 +2675,7 @@ end
 function Section:SetTitle(str)
     if self._header then
         self._headerRaw = str
-        self._header.Text = tostring(str)
+        self._header.Text = self._caps and spaced(tostring(str):upper()) or tostring(str)
     end
 end
 
@@ -2603,7 +2899,9 @@ local function baseRow(section, config, opts)
         Parent = section._card,
     })
     corner(row, RADIUS.sm)
+    row.BackgroundTransparency = theme.SurfaceAlpha or 0
     bind(el, row, "BackgroundColor3", "Surface")
+    bind(el, row, "BackgroundTransparency", "SurfaceAlpha")
     local rowStroke = stroke(row, theme.StrokeSoft, 1, 0.15)
     bind(el, rowStroke, "Color", "StrokeSoft")
     el._root = row
@@ -3243,6 +3541,7 @@ local function pill(parent, theme, width, height)
         Parent = parent,
     })
     corner(p, RADIUS.sm)
+    p.BackgroundTransparency = theme.ElementAlpha or 0
     local s = stroke(p, theme.StrokeSoft, 1, 0.4)
     return p, s
 end
@@ -3264,6 +3563,7 @@ function Section:AddDropdown(config)
     head.AnchorPoint = Vector2.new(1, 0)
     head.Position = UDim2.new(1, 0, 0, el._descLabel and 3 or 0)
     bind(el, head, "BackgroundColor3", "Element")
+    bind(el, head, "BackgroundTransparency", "ElementAlpha")
     bind(el, hs, "Color", "StrokeSoft")
 
     local headText = text({
@@ -3675,6 +3975,7 @@ function Section:AddKeybind(config)
 
     local p, ps = pill(el._right, theme, 92, 26)
     bind(el, p, "BackgroundColor3", "Element")
+    bind(el, p, "BackgroundTransparency", "ElementAlpha")
     bind(el, ps, "Color", "StrokeSoft")
 
     local lbl = text({
@@ -4868,9 +5169,10 @@ function BPUI:SetTheme(theme)
                 w._activeTab = nil
                 active:Select(true)
             end
+            pcall(function() w:_retintBackground() end)
             if type(theme) == "string" then
                 w._settings.Theme = theme
-                w:_saveSettings()
+                w:_saveSettingsLater()
             end
         end
     end
@@ -4884,7 +5186,7 @@ function BPUI:SetAccent(color)
     for _, w in ipairs(BPUI.Windows) do
         if not w._destroyed then
             w._settings.Accent = { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
-            w:_saveSettings()
+            w:_saveSettingsLater()
         end
     end
     BPUI:SetTheme(ACTIVE)
@@ -4942,6 +5244,65 @@ buildSettingsTab = function(window, config)
         Description = "Highlight used for active states.",
         Default = ACTIVE.Accent,
         Callback = function(c) BPUI:SetAccent(c) end,
+    })
+
+    local backdrop = tab:CreateSection("Background")
+
+    backdrop:AddToggle({
+        Name = "Ambient glow",
+        Description = "Soft coloured light behind the interface.",
+        Default = window._bg.Ambient ~= false,
+        FireOnCreate = false,
+        Callback = function(state) window:SetBackground({ Ambient = state }) end,
+    })
+
+    backdrop:AddColorPicker({
+        Name = "Glow colour",
+        Description = "Leave on the accent, or pick your own.",
+        Default = window._bg.Orb1 or ACTIVE.Accent,
+        Callback = function(c) window:SetBackground({ Orb1 = c }) end,
+    })
+
+    backdrop:AddColorPicker({
+        Name = "Second glow",
+        Default = window._bg.Orb2 or hueShift(ACTIVE.Accent, 48),
+        Callback = function(c) window:SetBackground({ Orb2 = c }) end,
+    })
+
+    backdrop:AddButton({
+        Name = "Match glow to accent",
+        Description = "Let both glows follow the accent colour again.",
+        Callback = function()
+            window:SetBackground({ Orb1 = false, Orb2 = false })
+            BPUI:Notify({ Title = "Glow reset", Content = "Following the accent colour.", Type = "Success" })
+        end,
+    })
+
+    backdrop:AddToggle({
+        Name = "Watermark",
+        Description = "Large faint logo behind the page.",
+        Default = window._bg.Watermark ~= false,
+        FireOnCreate = false,
+        Callback = function(state) window:SetBackground({ Watermark = state }) end,
+    })
+
+    backdrop:AddInput({
+        Name = "Background image",
+        Description = "Roblox image id, tiled behind everything. Leave empty for none.",
+        Placeholder = "asset id",
+        Default = window._bg.Image and tostring(window._bg.Image) or "",
+        Width = 150,
+        Callback = function(v)
+            v = tostring(v or ""):gsub("%s", "")
+            window:SetBackground({ Image = v ~= "" and v or false })
+        end,
+    })
+
+    backdrop:AddSlider({
+        Name = "Image opacity",
+        Min = 0, Max = 100, Default = math.floor((1 - (window._bg.ImageAlpha or 0.92)) * 100 + 0.5),
+        Suffix = "%",
+        Callback = function(v) window:SetBackground({ ImageAlpha = 1 - v / 100 }) end,
     })
 
     local behaviour = tab:CreateSection("Interface")

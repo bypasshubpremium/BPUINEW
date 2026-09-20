@@ -1,184 +1,181 @@
 # BPUI
-Works on **PC and Mobile**, makes **zero HTTP requests** (no `HttpError`), and runs on **low-level executors** because every executor function it touches is optional and guarded. Version 1.1.0.
+
+Premium UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own, and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
 
 ```lua
-local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
+local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/BPUI.lua"))()
 
-local Window = BPUI:CreateWindow({ Title = "My Hub", Subtitle = "v1" })
+local Window = BPUI:CreateWindow({ Title = "My Hub", Subtitle = "v1.0" })
 local Tab = Window:CreateTab({ Name = "Main" })
 local Section = Tab:CreateSection("Player")
 
 Section:AddToggle({
-    Name = "Example",
-    Flag = "Example",
+    Name = "Infinite Jump",
+    Description = "Jump again while already airborne.",
+    Flag = "InfJump",
     Callback = function(state) print(state) end,
 })
 ```
 
-## Files
+That is the whole install. One file, one line.
 
-| File | Purpose |
-| --- | --- |
-| `BPUI.lua` | The library. Host it on GitHub raw or paste it at the top of a script. |
-| `Loader.lua` | One-line entry point: loads the library, then the script for the current game (by PlaceId) or `Hub.lua`. |
-| `Hub.lua` | Universal hub template. |
-| `games/ExampleGame.lua` | Per-game script template. |
-| `Example.lua` | Every component in one script. Copy from here. |
-| `DEPLOY.md` | Step-by-step GitHub upload, raw links, versioning, troubleshooting. |
-| `PROMPT.md` | Paste into an AI chat so it writes scripts that use BPUI correctly. |
-| `test/` | Roblox API mock + automated tests (`lua test/test_bpui.lua`, `lua test/smoke.lua`). Not needed in the executor. |
+---
 
-## Highlights
+## What it looks like
 
-- Window: drag, resize grip (PC), true minimise to a title bar, search field that filters every element across all tabs, floating open/close bubble for mobile, toggle key for PC, remembered size/theme/accent/key.
-- Elements: Button, Toggle, Slider (drag or tap-to-type), Dropdown (single / multi, built-in filter for long lists), Input, Keybind (keyboard + mouse buttons, Press/Toggle/Hold), ColorPicker (HSV + hex), Label, Paragraph, Divider. Every element can be hidden, renamed, locked and destroyed.
-- Notifications (max five on screen), modal dialogs, key system without HTTP, config save/load/auto-load through flags, built-in Settings tab.
-- Safe mode: a failing element logs a warning and returns a harmless stub instead of killing your script.
+A dark glass window with a tab sidebar on the left and grouped cards on the right. Every surface is lit from above with a gradient, edges catch light along the top, and the window floats on a soft shadow. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while an accent pill glides to the new tab. Six palettes ship with it and the accent colour is yours to set.
 
-## Why it does not throw HttpError
+---
 
-The library never calls `HttpGet`, `request`, `loadstring(HttpGet(...))` or loads external images/fonts. Icons are drawn with frames, fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode` (local, no network). The only `HttpGet` in your project is the one in `Loader.lua` (or the one you use to load `BPUI.lua`), and that is your executor's request, not the UI's.
+## Why it will not throw `HttpError`
+
+The library never calls `HttpGet`, `request`, `syn.request` or anything like them. It loads no external images and no external fonts — icons are drawn from frames, fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode`, which is a local operation with no network involved.
+
+The only request in the whole setup is the `HttpGet` **you** write to fetch this file, and that is your executor's request, not the UI's.
+
+---
 
 ## Executor compatibility
 
-Every executor API is detected at runtime and wrapped in `pcall`:
+Everything optional is detected at runtime and wrapped in `pcall`:
 
-| Feature | Uses | Without it |
+| Needs | Used for | Missing it means |
 | --- | --- | --- |
-| GUI parenting | `gethui()` -> `CoreGui` -> `PlayerGui` | falls through the chain |
-| Configs, saved key, settings | `writefile` `readfile` `isfile` `isfolder` `makefolder` `listfiles` `delfile` | config UI shows "unavailable", everything else works |
-| Get Key button | `setclipboard` / `toclipboard` | shows the link in a notification instead |
-| Cleanup on re-execute | `getgenv()` -> `_G` | still works with `_G` |
+| `gethui()` → `CoreGui` → `PlayerGui` | where the UI is parented | falls down the chain automatically |
+| `writefile` `readfile` `isfile` `isfolder` `makefolder` `listfiles` `delfile` | configs, remembered settings, saved key | the Configuration section says so; everything else works |
+| `setclipboard` / `toclipboard` | the Get Key button | the link is shown in a notification instead |
+| `getgenv()` → `_G` | cleanup when the script is re-run | `_G` is used instead |
 
-Nothing else is required: only standard Roblox services (`TweenService`, `UserInputService`, `HttpService` for JSON, `Players`).
+Nothing else is required beyond standard Roblox services.
+
+---
 
 ## Mobile
 
-- Detected automatically (`TouchEnabled` and no mouse).
-- Smaller base window (560x350) so text stays close to 1:1 on phones; if the screen is still smaller the whole window scales down with `UIScale`.
-- A draggable floating bubble opens/closes the window (hidden on PC unless `FloatingButton = true`).
-- Every control accepts touch: sliders, colour picker, dragging the window, text boxes, dropdown filters.
-- Hover effects are disabled on touch devices to avoid stuck highlights; the resize grip is hidden.
+Detected automatically. The window starts smaller and scales down further on small screens, a draggable bubble opens and closes it, the resize grip is hidden, hover effects are turned off so nothing sticks highlighted, and every control — sliders, the colour wheel, dropdown filters, window dragging — takes touch. A second finger landing somewhere else will not hijack a drag in progress.
 
 ---
 
 ## API
 
-### `BPUI:CreateWindow(config)` -> Window
+### `BPUI:CreateWindow(config)` → Window
 
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `Title` | string | `"BPUI"` | Sidebar title, config folder name, cleanup key |
-| `Subtitle` | string | `""` | Small text under the title |
-| `Icon` | number/string | nil | `rbxassetid` for sidebar + floating button |
-| `Theme` | string/table | `"Dark"` | `Dark`, `Light`, `Midnight`, `Rose`, `Ocean` or a custom table |
+| `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
+| `Subtitle` | string | — | Small line under the title |
+| `Icon` | number/string | — | `rbxassetid` shown in the sidebar and the mobile bubble |
+| `Theme` | string/table | `"Obsidian"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
-| `Size` | UDim2/Vector2 | 640x440 (560x350 mobile) | Auto-scaled down on small screens |
-| `RememberSize` | bool | true | Restore the last resized size from settings |
-| `Scale` | number | 1 | Multiplier applied after auto-fit |
-| `SidebarWidth` | number | 176 (150 mobile) | |
-| `ToggleKey` | KeyCode/string | `RightShift` | PC show/hide key |
-| `FloatingButton` | bool | mobile only | Show the floating bubble |
+| `Size` | UDim2/Vector2 | 720×480 (540×360 mobile) | Auto-fitted to the screen |
+| `Scale` | number | `1` | Multiplier applied after the auto-fit |
+| `RememberSize` | bool | `true` | Restore the last resized size |
+| `SidebarWidth` | number | 196 (150 mobile) | |
+| `ToggleKey` | KeyCode/string | `RightShift` | Show/hide key on PC |
+| `FloatingButton` | bool | mobile only | Force the bubble on PC too |
 | `FloatingText` | string | first two letters | Text inside the bubble |
 | `Resizable` | bool | PC only | Bottom-right resize grip |
-| `Search` | bool | true | Search field in the top bar |
-| `ConfigFolder` | string | Title | `BPUI/<ConfigFolder>/` |
-| `ShowSettings` | bool | true | Built-in Settings tab |
-| `SettingsName` | string | `"Settings"` | Rename the built-in tab |
-| `CloseBehavior` | string | `"Destroy"` | `"Hide"` makes the X button hide instead |
-| `ConfirmClose` | bool | false | Ask before destroying via the X button |
-| `AutoLoad` | bool | true | Load the auto-load config ~1s after creation |
-| `AutoLoadDelay` | number | 1 | Seconds before auto-load |
-| `WelcomeNotification` | bool | true | "Press X to open" toast |
-| `KeySystem` | table | nil | See Key system |
-| `OnDestroy` | function | nil | Called when the window is unloaded |
-| `Footer` | string | `BPUI vX` | Text at the bottom of the sidebar |
+| `Search` | bool | `true` | Search field that filters every element in every tab |
+| `Transparency` | number | `0.02` | Window background transparency |
+| `ConfigFolder` | string | Title | Files live in `BPUI/<ConfigFolder>/` |
+| `ShowSettings` | bool | `true` | Built-in Settings tab |
+| `SettingsName` | string | `"Settings"` | Rename that tab |
+| `CloseBehavior` | string | `"Destroy"` | `"Hide"` makes the X hide instead |
+| `ConfirmClose` | bool | `false` | Ask before unloading |
+| `AutoLoad` | bool | `true` | Apply the auto-load config shortly after launch |
+| `AutoLoadDelay` | number | `1` | Seconds to wait first |
+| `WelcomeNotification` | bool | `true` | "Press X to toggle" toast |
+| `KeySystem` | table | — | See Key system |
+| `OnDestroy` | function | — | Called when the window unloads |
+| `Footer` | string | `BPUI vX` | Bottom of the sidebar |
 
-**Window methods**
+**Methods**
 
-`CreateTab(config)` `SelectTab(tabOrName)` `Show()` `Hide()` `Toggle()` `SetVisible(bool)` `Minimize(state?)` `SetSize(w, h)` `Search(text)` `Dialog(config)` `SetTitle(text)` `SetSubtitle(text)` `SetToggleKey(key)` `SetFloatingButtonVisible(bool)` `Notify(config)` `SaveConfig(name)` `LoadConfig(name)` `GetConfigs()` `DeleteConfig(name)` `SetAutoLoad(name|nil)` `GetAutoLoad()` `LoadAutoConfig()` `Destroy()`
+`CreateTab(config)` · `SelectTab(tabOrName)` · `Show()` · `Hide()` · `Toggle()` · `SetVisible(bool)` · `Minimize(state?)` · `Search(text)` · `Dialog(config)` · `SetTitle(text)` · `SetSubtitle(text)` · `SetToggleKey(key)` · `SetFloatingButtonVisible(bool)` · `Notify(config)` · `SaveConfig(name)` · `LoadConfig(name)` · `GetConfigs()` · `DeleteConfig(name)` · `SetAutoLoad(name|nil)` · `GetAutoLoad()` · `LoadAutoConfig()` · `Destroy()`
 
-### `Window:CreateTab(config)` -> Tab
+### `Window:CreateTab(config)` → Tab
 
-`{ Name = "Main", Icon = 123456 }` or just `"Main"`.
+Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = 123456 }`, or just a string.
 
-Tab methods: `CreateSection(nameOrConfig)`, `Select()`, `SetName(text)`, `Destroy()`. Every `Add*` element method also exists directly on a tab (an untitled section is created for you).
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+
+### `Tab:CreateSection(name)` → Section
+
+A grouped card with a spaced uppercase header. Methods: `SetTitle(text)` · `SetVisible(bool)` · `Destroy()` plus the element constructors. `Add*` and `Create*` are interchangeable.
 
 ### Elements
 
-Common keys: `Name`, `Description` (second line), `Flag` (config key, must be unique), `Callback`.
+Shared keys: `Name`, `Description`, `Flag` (config key — must be unique), `Callback`.
 
-Common methods: `Set(value, silent)` (aliases `SetValue`, `Update`), `Get()`, `SetVisible(bool)`, `SetName(text)`, `SetDescription(text)`, `SetCallback(fn)`, `SetLocked(bool)` / `Lock()` / `Unlock()`, `Destroy()`. `Value` always holds the current value.
+Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` · `SetVisible(bool)` · `SetName(text)` · `SetDescription(text)` · `SetCallback(fn)` · `SetLocked(bool)` / `Lock()` / `Unlock()` · `Destroy()`. The current value is always on `.Value`.
 
-| Element | Extra config | Callback receives | `Value` |
+| Element | Extra config | Callback gets | `.Value` |
 | --- | --- | --- | --- |
-| `AddButton` | - | nothing | - |
+| `AddButton` | — | nothing | — |
 | `AddToggle` | `Default` | `state` | boolean |
-| `AddSlider` | `Min` `Max` `Default` `Increment` `Suffix` `Typeable` | `number` | number |
+| `AddSlider` | `Min` `Max` `Default` `Increment` `Suffix` `Typeable` | number | number |
 | `AddDropdown` | `Options` `Default` `Multi` `Searchable` | option or table | string / table |
-| `AddInput` | `Placeholder` `Default` `Numeric` `MaxLength` `ClearOnFocus` `CallbackOnChange` `RemoveTextAfterFocusLost` | `text, enterPressed` | string |
-| `AddKeybind` | `Default` `Mode` (`Press`/`Toggle`/`Hold`) `OnChanged` | Press: nothing, Toggle: `state`, Hold: `true/false` | key name (`"E"`, `"MouseButton2"`) |
-| `AddColorPicker` | `Default` (Color3 / hex / `{R,G,B}`) | `Color3` | Color3 |
-| `AddLabel` | `Text` `Style` (`Accent`/`Sub`) `Center` | - | string |
-| `AddParagraph` | `Title` `Content` | - | string |
-| `AddDivider` | height | - | - |
+| `AddInput` | `Placeholder` `Default` `Numeric` `MaxLength` `Width` `ClearOnFocus` `CallbackOnChange` `RemoveTextAfterFocusLost` | `text, enterPressed` | string |
+| `AddKeybind` | `Default` `Mode` (`Press`/`Toggle`/`Hold`) `OnChanged` | Press: nothing · Toggle: `state` · Hold: `true`/`false` | key name |
+| `AddColorPicker` | `Default` (Color3 / hex / `{r,g,b}`) | Color3 | Color3 |
+| `AddLabel` | `Text` `Style` (`Accent`/`Sub`/`Success`/`Warning`/`Error`) `Center` `Bold` `TextSize` | — | string |
+| `AddParagraph` | `Title` `Content` | — | string |
+| `AddDivider` | height | — | — |
 
-Extras: `Dropdown:Refresh(options, keepValue)`, `Dropdown:Open()/Close()`, `Slider:SetRange(min, max)`, `Keybind:GetKeyCode()`, `ColorPicker:Open()/Close()`, `Paragraph:SetTitle()/SetContent()`, `Button:Click()`.
+Extras: `Dropdown:Refresh(options, keepValue)` · `Dropdown:Open()/Close()` · `Slider:SetRange(min, max)` · `Keybind:GetKeyCode()` · `ColorPicker:Open()/Close()` · `Paragraph:SetTitle()/SetContent()` · `Button:Click()`.
 
-Notes:
-- Toggles with `Default = true` fire their callback once on creation so the feature starts enabled.
-- Sliders: drag the knob, or tap the value to type an exact number.
-- Dropdowns with more than six options get a filter box automatically (`Searchable = true/false` overrides).
-- Keybinds capture keyboard keys and the right/middle mouse buttons; Backspace clears, Escape cancels.
-- Locked elements are dimmed and ignore all input; programmatic `Set` still works.
+Notes worth knowing: sliders can be dragged or tapped to type an exact number; dropdowns past six options grow a filter box on their own; keybinds take keyboard keys plus the right and middle mouse buttons, Backspace clears and Escape cancels; locked elements dim, stop accepting input and stop accepting typed text, while `Set` still works from code.
 
 ### Notifications
 
 ```lua
-local toast = BPUI:Notify({ Title = "Saved", Content = "Config written.", Type = "Success", Duration = 4 })
--- Type: "Info" | "Success" | "Warning" | "Error"
-toast:SetContent("Updated text")   -- toast:Dismiss()
+local toast = BPUI:Notify({
+    Title = "Saved",
+    Content = "Config written to disk.",
+    Type = "Success",   -- Info | Success | Warning | Error
+    Duration = 4,       -- 0 keeps it until dismissed
+})
+toast:SetContent("Updated")
+toast:Dismiss()
 ```
 
-Works before a window exists. Top-right on PC, top-centre on mobile, tap to dismiss, at most five visible (oldest is dismissed first).
+Works before any window exists. Top-right on PC, top-centre on mobile, tap to dismiss, five on screen at most.
 
 ### Dialogs
 
 ```lua
 Window:Dialog({
-    Title = "Reset settings?",
-    Content = "Every flag goes back to its default value.",
+    Title = "Reset everything?",
+    Content = "Every flag goes back to its default.",
     Buttons = {
         { Text = "Cancel" },
-        { Text = "Reset", Style = "Danger", Callback = function() ... end },  -- Style: Default | Accent | Danger
+        { Text = "Reset", Style = "Danger", Callback = function() end },
     },
 })
 ```
 
-### Key system (no HTTP)
+`Style` is `Default`, `Accent` or `Danger`.
+
+### Key system
 
 ```lua
 KeySystem = {
     Title = "My Hub | Key System",
     Subtitle = "Enter your key to continue",
-    Note = "Get your key from our Discord.",
-    Keys = { "KEY-1", "KEY-2" },              -- accepted keys (or Key = "single")
+    Keys = { "KEY-ONE", "KEY-TWO" },
     CaseSensitive = false,
-    SaveKey = true,                           -- remembers a valid key in BPUI/<folder>/key.txt
-    GetKeyLink = "https://discord.gg/...",    -- Get Key button copies this
-    Validate = function(key) return ... end,  -- optional custom check, runs first
-    MaxAttempts = nil,                        -- optional
-    OnGetKey = function() end,                -- optional
+    SaveKey = true,
+    GetKeyLink = "https://example.com/key",
+    Validate = function(key) return key:sub(1, 3) == "VIP" end,
+    MaxAttempts = 3,
 }
 ```
 
-`CreateWindow` yields until the key is accepted, so put the rest of your script after it. Keys stored in the script are visible to anyone who reads the file; `Validate` lets you plug in your own logic if you need something stronger.
+`CreateWindow` waits until the key is accepted, so put the rest of your script after it. A valid key is remembered in `BPUI/<folder>/key.txt` unless you turn that off. Keys written into the script are readable by anyone who opens the file — `Validate` is there if you need something stronger.
 
 ### Configs
 
-Every element with a `Flag` is saved. Files: `BPUI/<ConfigFolder>/configs/<name>.json`. The built-in Settings tab has Save / Load / Delete / Auto Load controls, and `settings.json` remembers theme, accent, toggle key, floating button and window size.
-
-If a config is loaded before some elements exist (for example your script yields), those elements still receive their saved value when they are created.
+Every element with a `Flag` is saved. Files land in `BPUI/<ConfigFolder>/configs/<name>.json`, and `settings.json` remembers the theme, accent, toggle key, floating button and window size. The built-in Settings tab has Save, Load, Delete and Auto Load wired up already.
 
 ```lua
 Window:SaveConfig("pvp")
@@ -188,34 +185,56 @@ print(BPUI:GetFlag("WalkSpeed"))
 BPUI:SetFlag("WalkSpeed", 50)
 ```
 
+If a config loads before some elements exist — because your script yields, say — those elements pick up their saved value when they are created.
+
 ### Themes
 
-Built in: `Dark`, `Light`, `Midnight`, `Rose`, `Ocean`. Switch at runtime with `BPUI:SetTheme("Light")` or `BPUI:SetAccent(Color3)`. The user's choice is remembered in `settings.json`.
-
-Custom theme: pass a table with any of these keys (missing keys fall back to Dark):
-`Window Sidebar Card CardHover Element Separator Stroke Text SubText Accent AccentText Success Warning Error Toggle ToggleOff Knob`
+`Obsidian` (default), `Porcelain`, `Onyx`, `Velvet`, `Abyss`, `Crimson`.
 
 ```lua
-BPUI.Themes.Lime = { Accent = Color3.fromRGB(120, 220, 80), AccentText = Color3.fromRGB(0, 0, 0), Toggle = Color3.fromRGB(120, 220, 80) }
+BPUI:SetTheme("Velvet")
+BPUI:SetAccent(Color3.fromRGB(255, 120, 60))
+```
+
+Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to Obsidian:
+
+```
+Backdrop Window Sidebar Surface SurfaceHover Element ElementHover
+Stroke StrokeSoft Text SubText Muted Accent AccentText
+Success Warning Danger Track Knob Dark
+```
+
+```lua
+BPUI.Themes.Lime = {
+    Accent = Color3.fromRGB(150, 230, 90),
+    AccentText = Color3.fromRGB(10, 25, 5),
+    Dark = true,
+}
 BPUI:SetTheme("Lime")
 ```
 
 ### Library helpers
 
-`BPUI:Notify()` `BPUI:SetTheme()` `BPUI:SetAccent()` `BPUI:GetFlag()` `BPUI:SetFlag()` `BPUI:Destroy()` `BPUI.Flags` `BPUI.IsMobile` `BPUI.Version` `BPUI.SafeMode` `BPUI.CopyToClipboard(text)` `BPUI.FileSystem.Available`
+`BPUI:Notify()` · `BPUI:SetTheme()` · `BPUI:SetAccent()` · `BPUI:GetThemes()` · `BPUI:GetFlag()` · `BPUI:SetFlag()` · `BPUI:Destroy()` · `BPUI.Flags` · `BPUI.IsMobile` · `BPUI.Version` · `BPUI.SafeMode` · `BPUI.CopyToClipboard(text)` · `BPUI.FileSystem.Available`
 
 ### Safe mode
 
-`BPUI.SafeMode` is `true` by default: if an element constructor throws (unexpected executor quirk, bad config), the library prints `[BPUI] Failed to create ...` and returns a stub whose methods do nothing, so the rest of your script keeps running. Set it to `false` while developing to get the raw error and stack trace.
+`BPUI.SafeMode` is on by default. If an element constructor throws — an odd executor, a bad config — the library warns and hands back a harmless stub so the rest of your script keeps running. Turn it off while you are developing to get the real error and stack trace.
+
+---
+
+## Re-running
+
+Creating a window with a `Title` that already exists unloads the previous one first: its GUI goes, its input connections are disconnected, its flags are cleared. Keep the title stable between runs and re-executing is always clean.
 
 ---
 
 ## Hosting
 
-See `DEPLOY.md` for the full walkthrough. Short version: upload the folder to a public GitHub repository, replace `bypasshubpremium/BPUINEW` in `Loader.lua`, and share
+Upload `BPUI.lua` to a public repository and point at the raw file:
 
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/Loader.lua"))()
+```
+https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/BPUI.lua
 ```
 
-Re-running a script that creates a window with the same `Title` automatically removes the previous copy.
+GitHub caches raw files for a few minutes. While testing, add a throwaway query string (`?v=2`) to force a fresh copy. For something stable, tag a release and load from the tag instead of `main` — then a bad commit cannot reach anyone who is already using it.

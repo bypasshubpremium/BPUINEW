@@ -23,7 +23,9 @@ That is the whole install. One file, one line.
 
 ## What it looks like
 
-Windows 11 Fluent Design, built to match: a navigation pane on the left, and on the right a page where every setting sits in its own rounded card. Surfaces are lit from above with a gradient, edges catch light along the top, and the window rests on a layered shadow. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while an accent bar glides to the new item. Toggles, sliders, combo boxes and caption buttons follow the real Fluent geometry and motion curves.
+Fluent bones with its own identity. A navigation pane on the left carries the brand mark under a soft accent glow, a search field, and tabs that can be grouped under collapsible headers with chevrons. On the right, every setting sits in its own rounded card under a section header marked with an accent tick, beneath a page title underlined by a fading accent hairline. Surfaces are lit from above, edges catch light along the top, the window rests on a layered shadow, and a small pulse in the footer keeps the whole thing feeling alive. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while the accent bar grows beside the new item. Toggles glow when they are on.
+
+Tabs, groups and rows all take an `Icon`, and it can be an emoji — `Icon = "🎯"` — which Roblox renders in full colour, or an `rbxassetid` image, which is tinted to the theme.
 
 Nothing is fetched to draw it. Every icon — the close cross, the chevrons, the checkmarks, the magnifier, the toast badges — is composed from rotated frames, and the shadows are stacked frames rather than an image. No asset can fail to load, and no glyph can come back as a missing-character box.
 
@@ -67,7 +69,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
 | `Icon` | number/string | — | `rbxassetid` shown in the sidebar and the mobile bubble |
-| `Theme` | string/table | `"FluentDark"` | See Themes |
+| `Theme` | string/table | `"Nocturne"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
 | `Size` | UDim2/Vector2 | 840×580 (560×400 mobile) | Auto-fitted to the screen |
 | `Scale` | number | `1` | Multiplier applied after the auto-fit |
@@ -92,6 +94,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `KeySystem` | table | — | See Key system |
 | `OnDestroy` | function | — | Called when the window unloads |
 | `Footer` | string | `BPUI vX` | Bottom of the sidebar |
+| `FooterName` | string | player's display name | Shown above the footer text, next to the pulse |
 
 **Methods**
 
@@ -99,9 +102,21 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 ### `Window:CreateTab(config)` → Tab
 
-Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = 123456 }`, or just a string.
+Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠" }`, or just a string. `Icon` is an emoji or an `rbxassetid`.
 
-Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+
+### `Window:CreateGroup(config)` → Group
+
+A collapsible header in the sidebar with tabs nested under it.
+
+```lua
+local combat = Window:CreateGroup({ Name = "Combat", Icon = "⚔️", Open = true })
+local aim = combat:CreateTab({ Name = "Aimbot", Icon = "🎯" })
+local esp = combat:CreateTab({ Name = "ESP", Icon = "👁️" })
+```
+
+Clicking the header folds the group with an animation and rotates its chevron. Selecting a tab inside a closed group opens it. Methods: `CreateTab(config)` · `Open()` · `Close()` · `Toggle()` · `SetOpen(bool)` · `IsOpen()` · `SetName(text)` · `Destroy()`. Search hides a group whose tabs have no matches.
 
 ### `Tab:CreateSection(name)` → Section
 
@@ -193,14 +208,14 @@ If a config loads before some elements exist — because your script yields, say
 
 ### Themes
 
-`FluentDark` (default), `FluentLight`, `Obsidian`, `Midnight`, `Nord`, `Crimson`. The first two are the Windows 11 system palettes; the rest keep the same Fluent structure with different neutrals.
+`Nocturne` (default — deep blue-black with a periwinkle accent), `FluentDark` and `FluentLight` (the Windows 11 system palettes), `Obsidian`, `Midnight`, `Nord`, `Crimson`.
 
 ```lua
 BPUI:SetTheme("FluentLight")
 BPUI:SetAccent(Color3.fromRGB(255, 120, 60))
 ```
 
-Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to FluentDark:
+Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to Nocturne:
 
 ```
 Window Sidebar TitleBar Surface SurfaceHover Element ElementHover

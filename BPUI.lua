@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.2.0",
+    Version = "2.3.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -112,7 +112,7 @@ local FONT = {
     mono   = pickFont({ "RobotoMono", "Code" }, Enum.Font.Code),
 }
 
-local RADIUS = { xs = 3, sm = 4, md = 6, lg = 8, xl = 8, pill = 999 }
+local RADIUS = { xs = 3, sm = 6, md = 8, lg = 10, xl = 12, pill = 999 }
 
 local MOTION = {
     hover    = TweenInfo.new(0.10, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
@@ -126,6 +126,31 @@ local MOTION = {
 }
 
 local function rgb(r, g, b) return Color3.fromRGB(r, g, b) end
+
+BPUI.Themes.Nocturne = {
+    Name = "Nocturne",
+    Window       = rgb(17, 18, 24),
+    Sidebar      = rgb(13, 14, 19),
+    TitleBar     = rgb(13, 14, 19),
+    Surface      = rgb(24, 26, 34),
+    SurfaceHover = rgb(30, 33, 43),
+    Element      = rgb(33, 36, 47),
+    ElementHover = rgb(41, 45, 58),
+    Stroke       = rgb(40, 44, 58),
+    StrokeSoft   = rgb(32, 35, 46),
+    Text         = rgb(240, 242, 250),
+    SubText      = rgb(170, 176, 196),
+    Muted        = rgb(112, 118, 140),
+    Accent       = rgb(112, 140, 255),
+    AccentText   = rgb(255, 255, 255),
+    Success      = rgb(84, 214, 150),
+    Warning      = rgb(252, 196, 92),
+    Danger       = rgb(255, 112, 128),
+    Track        = rgb(52, 56, 72),
+    KnobOn       = rgb(255, 255, 255),
+    KnobOff      = rgb(176, 182, 202),
+    Dark         = true,
+}
 
 BPUI.Themes.FluentDark = {
     Name = "FluentDark",
@@ -277,11 +302,11 @@ BPUI.Themes.Crimson = {
     Dark         = true,
 }
 
-local ACTIVE = BPUI.Themes.FluentDark
+local ACTIVE = BPUI.Themes.Nocturne
 
 local function resolveTheme(v)
     local merged = {}
-    for k, val in pairs(BPUI.Themes.FluentDark) do merged[k] = val end
+    for k, val in pairs(BPUI.Themes.Nocturne) do merged[k] = val end
     local source
     if type(v) == "string" and BPUI.Themes[v] then source = BPUI.Themes[v]
     elseif type(v) == "table" then source = v end
@@ -471,6 +496,77 @@ local function autoSlot(parent, opts)
     local conn = card:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
     task.defer(sync)
     return slot, card, conn
+end
+
+local function isAssetIcon(v)
+    if type(v) == "number" then return true end
+    if type(v) ~= "string" then return false end
+    if v:match("^rbxasset") then return true end
+    return v:match("^%s*%d+%s*$") ~= nil
+end
+
+local function iconAny(parent, icon, size, color, zindex)
+    if icon == nil or icon == "" then return nil, nil end
+    if isAssetIcon(icon) then
+        local img = tostring(icon)
+        if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
+        local i = new("ImageLabel", {
+            Name = "Icon",
+            BackgroundTransparency = 1,
+            Image = img,
+            ImageColor3 = color,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, size, 0, size),
+            ZIndex = zindex or 5,
+            Parent = parent,
+        })
+        return i, "image"
+    end
+    local t = new("TextLabel", {
+        Name = "Icon",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = tostring(icon),
+        Font = Enum.Font.GothamMedium,
+        TextSize = math.floor(size * 0.92),
+        TextColor3 = color,
+        TextScaled = false,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, size + 6, 0, size + 6),
+        ZIndex = zindex or 5,
+        Parent = parent,
+    })
+    return t, "text"
+end
+
+local function accentGlow(parent, color, spread, alpha, zindex)
+    local holder = new("Frame", {
+        Name = "Glow",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, spread * 2, 1, spread * 2),
+        ZIndex = zindex or 0,
+        Parent = parent,
+    })
+    local layers = 4
+    for i = 1, layers do
+        local f = (i - 1) / (layers - 1)
+        local inset = spread * f
+        local l = new("Frame", {
+            BackgroundColor3 = color,
+            BackgroundTransparency = 0.985 + (alpha - 0.985) * f,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, inset, 0, inset),
+            Size = UDim2.new(1, -inset * 2, 1, -inset * 2),
+            ZIndex = zindex or 0,
+            Parent = holder,
+        })
+        corner(l, RADIUS.pill)
+    end
+    return holder
 end
 
 local function iconHolder(parent, size, zindex)
@@ -1146,7 +1242,7 @@ function BPUI:CreateWindow(config)
     self._scale = rootScale
     self._fit = fit
 
-    dropShadow(root, 26, RADIUS.xl, 0.80, 0)
+    dropShadow(root, 30, RADIUS.xl, 0.76, 0)
 
     local main = new("Frame", {
         Name = "Main",
@@ -1161,7 +1257,7 @@ function BPUI:CreateWindow(config)
     })
     corner(main, RADIUS.xl)
     bind(self, main, "BackgroundColor3", "Window")
-    local mainStroke = stroke(main, theme.Stroke, 1, 0.1)
+    local mainStroke = stroke(main, theme.Stroke, 1, 0.05)
     edgeLight(mainStroke, theme)
     bind(self, mainStroke, "Color", "Stroke")
     self._main = main
@@ -1192,16 +1288,36 @@ function BPUI:CreateWindow(config)
     })
     bind(self, vdiv, "BackgroundColor3", "Stroke")
 
+    local wash = new("Frame", {
+        Name = "Wash",
+        BackgroundColor3 = theme.Accent,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 150),
+        ZIndex = 2,
+        Parent = sidebar,
+    })
+    bind(self, wash, "BackgroundColor3", "Accent")
+    new("UIGradient", {
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.90),
+            NumberSequenceKeypoint.new(0.55, 0.975),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+        Rotation = 90,
+        Parent = wash,
+    })
+
     local brand = new("Frame", {
         Name = "Brand",
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 64),
+        Size = UDim2.new(1, 0, 0, 66),
         ZIndex = 3,
         Parent = sidebar,
     })
     pad(brand, 0, 14, 0, 14)
 
-    local markSize = 28
+    local markSize = 32
     local mark = new("Frame", {
         Name = "Mark",
         BackgroundColor3 = theme.Accent,
@@ -1214,24 +1330,22 @@ function BPUI:CreateWindow(config)
     })
     corner(mark, RADIUS.md)
     bind(self, mark, "BackgroundColor3", "Accent")
-    sheen(mark, 0.82, nil, 90)
+    sheen(mark, 0.78, nil, 135)
+    local markGlow = accentGlow(mark, theme.Accent, 10, 0.80, 3)
+    for _, l in ipairs(markGlow:GetChildren()) do bind(self, l, "BackgroundColor3", "Accent") end
+    local markStroke = stroke(mark, Color3.new(1, 1, 1), 1, 0.78)
 
     if config.Icon then
-        local img = tostring(config.Icon)
-        if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
-        new("ImageLabel", {
-            BackgroundTransparency = 1,
-            Image = img,
-            Size = UDim2.new(1, -10, 1, -10),
-            Position = UDim2.new(0, 5, 0, 5),
-            ZIndex = 5,
-            Parent = mark,
-        })
+        local ico, kind = iconAny(mark, config.Icon, 18, theme.AccentText, 5)
+        if kind == "image" then
+            ico.Size = UDim2.new(1, -10, 1, -10)
+            bind(self, ico, "ImageColor3", "AccentText")
+        end
     else
         local initials = title:sub(1, 1):upper()
         local second = title:match("%s(%a)")
         if second then initials = initials .. second:upper() end
-        text({
+        local initialsLabel = text({
             Text = initials,
             Font = FONT.bold,
             TextSize = 13,
@@ -1240,6 +1354,7 @@ function BPUI:CreateWindow(config)
             ZIndex = 5,
             Parent = mark,
         })
+        bind(self, initialsLabel, "TextColor3", "AccentText")
     end
 
     local brandText = new("Frame", {
@@ -1254,7 +1369,7 @@ function BPUI:CreateWindow(config)
     local brandTitle = text({
         Text = title,
         Font = FONT.bold,
-        TextSize = 14,
+        TextSize = 15,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -1341,13 +1456,13 @@ function BPUI:CreateWindow(config)
         self._searchBox = searchBox
     end
 
-    local tabTop = (config.Search ~= false) and 104 or 70
+    local tabTop = (config.Search ~= false) and 108 or 74
     local tabScroll = new("ScrollingFrame", {
         Name = "Tabs",
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 8, 0, tabTop),
-        Size = UDim2.new(1, -16, 1, -(tabTop + 44)),
+        Size = UDim2.new(1, -16, 1, -(tabTop + 52)),
         CanvasSize = UDim2.new(0, 0, 0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollBarThickness = 0,
@@ -1357,35 +1472,67 @@ function BPUI:CreateWindow(config)
     })
     list(tabScroll, TAB_GAP)
     self._tabScroll = tabScroll
-
-    local indicator = new("Frame", {
-        Name = "Indicator",
-        BackgroundColor3 = theme.Accent,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 0),
-        Position = UDim2.new(0, 8, 0, tabTop),
-        Size = UDim2.new(0, 3, 0, 18),
-        Visible = false,
-        ZIndex = 6,
-        Parent = sidebar,
-    })
-    corner(indicator, RADIUS.pill)
-    bind(self, indicator, "BackgroundColor3", "Accent")
-    self._indicator = indicator
-    self._tabTop = tabTop
-    track(self, tabScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        self:_layoutIndicator(true)
-    end))
+    self._groups = {}
 
     local footer = new("Frame", {
         Name = "Footer",
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.new(0, 0, 1, 0),
-        Size = UDim2.new(1, 0, 0, 40),
+        Size = UDim2.new(1, 0, 0, 48),
         ZIndex = 3,
         Parent = sidebar,
     })
+    local footerLine = new("Frame", {
+        BackgroundColor3 = theme.Stroke,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 14, 0, 0),
+        Size = UDim2.new(1, -28, 0, 1),
+        ZIndex = 3,
+        Parent = footer,
+    })
+    bind(self, footerLine, "BackgroundColor3", "Stroke")
+
+    local pulse = new("Frame", {
+        Name = "Pulse",
+        BackgroundColor3 = theme.Success,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 14, 0.5, 2),
+        Size = UDim2.new(0, 7, 0, 7),
+        ZIndex = 4,
+        Parent = footer,
+    })
+    corner(pulse, RADIUS.pill)
+    bind(self, pulse, "BackgroundColor3", "Success")
+    local pulseRing = accentGlow(pulse, theme.Success, 5, 0.75, 3)
+    for _, l in ipairs(pulseRing:GetChildren()) do bind(self, l, "BackgroundColor3", "Success") end
+    task.spawn(function()
+        while not self._destroyed and pulse.Parent do
+            tw(pulseRing, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Size = UDim2.new(1, 16, 1, 16) })
+            task.wait(1.15)
+            if self._destroyed then break end
+            tw(pulseRing, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Size = UDim2.new(1, 8, 1, 8) })
+            task.wait(1.15)
+        end
+    end)
+
+    local who = ""
+    pcall(function() who = LocalPlayer.DisplayName or LocalPlayer.Name or "" end)
+    local footerName = text({
+        Text = config.FooterName or who,
+        Font = FONT.medium,
+        TextSize = 11,
+        TextColor3 = theme.SubText,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Position = UDim2.new(0, 27, 0.5, -6),
+        Size = UDim2.new(1, -41, 0, 14),
+        ZIndex = 4,
+        Parent = footer,
+    })
+    bind(self, footerName, "TextColor3", "SubText")
     local footerText = text({
         Text = config.Footer or ("BPUI v" .. BPUI.Version),
         Font = FONT.body,
@@ -1393,9 +1540,9 @@ function BPUI:CreateWindow(config)
         TextColor3 = theme.Muted,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
-        Position = UDim2.new(0, 14, 0, 0),
-        Size = UDim2.new(1, -28, 1, -10),
-        ZIndex = 3,
+        Position = UDim2.new(0, 27, 0.5, 8),
+        Size = UDim2.new(1, -41, 0, 12),
+        ZIndex = 4,
         Parent = footer,
     })
     bind(self, footerText, "TextColor3", "Muted")
@@ -1420,10 +1567,30 @@ function BPUI:CreateWindow(config)
     })
     self._topbar = topbar
 
+    local hairline = new("Frame", {
+        Name = "Hairline",
+        BackgroundColor3 = theme.Accent,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 20, 1, 0),
+        Size = UDim2.new(1, -40, 0, 1),
+        ZIndex = 4,
+        Parent = topbar,
+    })
+    bind(self, hairline, "BackgroundColor3", "Accent")
+    new("UIGradient", {
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.15),
+            NumberSequenceKeypoint.new(0.45, 0.7),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+        Parent = hairline,
+    })
+
     local pageTitle = text({
         Text = "",
         Font = FONT.bold,
-        TextSize = 16,
+        TextSize = 17,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -1691,7 +1858,7 @@ function BPUI:CreateWindow(config)
     local toggleKey = keyFromValue(settings.ToggleKey or config.ToggleKey or "RightShift")
     self._toggleKey = toggleKey
     track(self, UserInputService.InputBegan:Connect(function(input, gp)
-        if gp or self._destroyed then return end
+        if gp or self._destroyed or BPUI._activeKeybindCancel then return end
         if self._toggleKey and input.KeyCode == self._toggleKey then
             self:Toggle()
         end
@@ -1749,43 +1916,43 @@ function Window:_saveSettings()
     if ok then FS.write(self._folder .. "/settings.json", raw) end
 end
 
-function Window:_layoutIndicator(instant)
-    local tab = self._activeTab
-    if not tab or not self._indicator then return end
-    if not tab._button or not tab._button.Visible then
-        self._indicator.Visible = false
-        return
-    end
-    local slot = 0
-    for _, t in ipairs(self._tabs) do
-        if t == tab then break end
-        if t._button and t._button.Visible then slot = slot + 1 end
-    end
-    local canvasY = 0
-    local ok, pos = pcall(function() return self._tabScroll.CanvasPosition.Y end)
-    if ok and pos then canvasY = pos end
-    local y = self._tabTop + slot * (TAB_H + TAB_GAP) + (TAB_H - 18) / 2 - canvasY
-    local target = UDim2.new(0, 8, 0, y)
-    self._indicator.Visible = true
-    if instant then
-        self._indicator.Position = target
-    else
-        tw(self._indicator, MOTION.standard, { Position = target })
-    end
-end
+function Window:_layoutIndicator() end
 local Tab = {}
 Tab.__index = Tab
 local Section = {}
 Section.__index = Section
+local Group = {}
+Group.__index = Group
 
-function Window:CreateTab(config)
+local function nextOrder(w)
+    w._navOrder = (w._navOrder or 0) + 1
+    return w._navOrder
+end
+
+local function navIcon(owner, parent, icon, x, color)
+    if not icon then return nil, nil, 0 end
+    local box = new("Frame", {
+        Name = "IconBox",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, x, 0.5, 0),
+        Size = UDim2.new(0, 20, 0, 20),
+        ZIndex = 5,
+        Parent = parent,
+    })
+    local ico, kind = iconAny(box, icon, 17, color, 6)
+    return ico, kind, 26
+end
+
+local function buildTab(w, container, config, group)
     if type(config) == "string" then config = { Name = config } end
     config = config or {}
     local theme = ACTIVE
-    local name = config.Name or ("Tab " .. (#self._tabs + 1))
+    local name = config.Name or ("Tab " .. (#w._tabs + 1))
 
     local tab = setmetatable({}, Tab)
-    tab._window = self
+    tab._window = w
+    tab._group = group
     tab._name = name
     tab._subtitle = config.Subtitle or config.Description or ""
     tab._sections = {}
@@ -1795,36 +1962,40 @@ function Window:CreateTab(config)
 
     local button = new("TextButton", {
         Name = "Tab_" .. name,
-        BackgroundColor3 = theme.Sidebar,
+        BackgroundColor3 = theme.Accent,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
         Size = UDim2.new(1, 0, 0, TAB_H),
-        LayoutOrder = #self._tabs + 1,
+        LayoutOrder = group and (#group._tabs + 1) or nextOrder(w),
         ClipsDescendants = true,
         ZIndex = 4,
-        Parent = self._tabScroll,
+        Parent = container,
     })
-    corner(button, RADIUS.md)
+    corner(button, RADIUS.sm)
     tab._button = button
 
-    local labelX = 12
-    if config.Icon then
-        local img = tostring(config.Icon)
-        if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
-        local icon = new("ImageLabel", {
-            BackgroundTransparency = 1,
-            Image = img,
-            ImageColor3 = theme.SubText,
-            AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 11, 0.5, 0),
-            Size = UDim2.new(0, 16, 0, 16),
-            ZIndex = 5,
-            Parent = button,
-        })
-        tab._icon = icon
-        labelX = 35
+    local bar_ = new("Frame", {
+        Name = "Bar",
+        BackgroundColor3 = theme.Accent,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.new(0, 3, 0, 0),
+        ZIndex = 6,
+        Parent = button,
+    })
+    corner(bar_, RADIUS.pill)
+    bind(tab, bar_, "BackgroundColor3", "Accent")
+    tab._bar = bar_
+
+    local inset = group and 12 or 0
+    local labelX = 12 + inset
+    local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText)
+    if ico then
+        tab._icon, tab._iconKind = ico, kind
+        labelX = labelX + w_
     end
 
     local label = text({
@@ -1855,7 +2026,7 @@ function Window:CreateTab(config)
         ScrollingDirection = Enum.ScrollingDirection.Y,
         Visible = false,
         ZIndex = 2,
-        Parent = self._pages,
+        Parent = w._pages,
     })
     pad(page, 10, 22, 26, 22)
     list(page, 20)
@@ -1864,27 +2035,207 @@ function Window:CreateTab(config)
 
     if not IS_MOBILE then
         track(tab, button.MouseEnter:Connect(function()
-            if self._activeTab == tab then return end
-            tween(button, { BackgroundTransparency = 0.45, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
+            if w._activeTab == tab then return end
+            tween(button, { BackgroundTransparency = 0.5, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.Text }, MOTION.hover)
-            if tab._icon then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover) end
+            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover) end
         end))
         track(tab, button.MouseLeave:Connect(function()
-            if self._activeTab == tab then return end
+            if w._activeTab == tab then return end
             tween(button, { BackgroundTransparency = 1 }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.SubText }, MOTION.hover)
-            if tab._icon then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover) end
+            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover) end
         end))
     end
 
     pressable(tab, button, button, function() tab:Select() end, {
-        rippleAlpha = 0.93,
+        rippleAlpha = 0.92,
         pressScale = 0.985,
     })
 
-    table.insert(self._tabs, tab)
-    if #self._tabs == 1 then tab:Select(true) end
+    table.insert(w._tabs, tab)
+    if group then table.insert(group._tabs, tab) end
+    if #w._tabs == 1 then tab:Select(true) end
     return tab
+end
+
+function Window:CreateTab(config)
+    return buildTab(self, self._tabScroll, config, nil)
+end
+
+function Window:CreateGroup(config)
+    if type(config) == "string" then config = { Name = config } end
+    config = config or {}
+    local theme = ACTIVE
+    local w = self
+
+    local group = setmetatable({}, Group)
+    group._window = w
+    group._name = config.Name or "Group"
+    group._tabs = {}
+    group._open = config.Open ~= false
+    group._connections = {}
+    group._bindings = {}
+
+    local header = new("TextButton", {
+        Name = "Group_" .. group._name,
+        BackgroundColor3 = theme.SurfaceHover,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        Size = UDim2.new(1, 0, 0, TAB_H),
+        LayoutOrder = nextOrder(w),
+        ClipsDescendants = true,
+        ZIndex = 4,
+        Parent = w._tabScroll,
+    })
+    corner(header, RADIUS.sm)
+    group._header = header
+
+    local labelX = 12
+    local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText)
+    if ico then
+        group._icon, group._iconKind = ico, kind
+        labelX = labelX + w_
+    end
+
+    local label = text({
+        Text = group._name,
+        Font = FONT.bold,
+        TextSize = 11,
+        TextColor3 = theme.SubText,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Position = UDim2.new(0, labelX, 0, 0),
+        Size = UDim2.new(1, -(labelX + 30), 1, 0),
+        ZIndex = 5,
+        Parent = header,
+    })
+    bind(group, label, "TextColor3", "SubText")
+    group._label = label
+
+    local chevBox = new("Frame", {
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 16, 0, 16),
+        ZIndex = 5,
+        Parent = header,
+    })
+    local chev = iconChevron(chevBox, 11, theme.Muted, group._open and 90 or 0, 6)
+    group._chev = chev
+
+    local container = new("Frame", {
+        Name = "GroupBody_" .. group._name,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ClipsDescendants = true,
+        LayoutOrder = nextOrder(w),
+        ZIndex = 4,
+        Parent = w._tabScroll,
+    })
+    local inner = new("Frame", {
+        Name = "Inner",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ZIndex = 4,
+        Parent = container,
+    })
+    list(inner, TAB_GAP)
+    pad(inner, 0, 0, 2, 0)
+    group._container = container
+    group._inner = inner
+
+    local rail = new("Frame", {
+        Name = "Rail",
+        BackgroundColor3 = theme.StrokeSoft,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 9, 0, 2),
+        Size = UDim2.new(0, 1, 1, -6),
+        ZIndex = 5,
+        Parent = container,
+    })
+    bind(group, rail, "BackgroundColor3", "StrokeSoft")
+
+    if not IS_MOBILE then
+        track(group, header.MouseEnter:Connect(function()
+            tween(header, { BackgroundTransparency = 0.5, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
+            tween(label, { TextColor3 = ACTIVE.Text }, MOTION.hover)
+        end))
+        track(group, header.MouseLeave:Connect(function()
+            tween(header, { BackgroundTransparency = 1 }, MOTION.hover)
+            tween(label, { TextColor3 = ACTIVE.SubText }, MOTION.hover)
+        end))
+    end
+    pressable(group, header, header, function() group:Toggle() end, { rippleAlpha = 0.92, pressScale = 0.985 })
+
+    table.insert(w._groups, group)
+    group:_layout(true)
+    return group
+end
+
+function Group:_contentHeight()
+    local n = 0
+    for _, t in ipairs(self._tabs) do
+        if t._button and t._button.Visible then n = n + 1 end
+    end
+    if n == 0 then return 0 end
+    return n * TAB_H + (n - 1) * TAB_GAP + 2
+end
+
+function Group:_layout(instant)
+    local h = self._open and self:_contentHeight() or 0
+    local target = UDim2.new(1, 0, 0, h)
+    if instant then
+        self._container.Size = target
+    else
+        tw(self._container, MOTION.standard, { Size = target })
+    end
+    self._container.Visible = h > 0 or self._open
+    if self._chev then
+        local rot = self._open and 90 or 0
+        if instant then self._chev.Rotation = rot
+        else tw(self._chev, MOTION.standard, { Rotation = rot }) end
+    end
+end
+
+function Group:SetOpen(state, instant)
+    self._open = state and true or false
+    self:_layout(instant)
+end
+
+function Group:Open() self:SetOpen(true) end
+function Group:Close() self:SetOpen(false) end
+function Group:Toggle() self:SetOpen(not self._open) end
+function Group:IsOpen() return self._open end
+
+function Group:CreateTab(config)
+    local tab = buildTab(self._window, self._inner, config, self)
+    self:_layout(true)
+    return tab
+end
+Group.AddTab = Group.CreateTab
+
+function Group:SetName(str)
+    self._name = str
+    self._label.Text = str
+end
+
+function Group:Destroy()
+    for i = #self._tabs, 1, -1 do
+        local t = self._tabs[i]
+        if t and t.Destroy then pcall(function() t:Destroy() end) end
+    end
+    untrack(self)
+    if self._header then self._header:Destroy() end
+    if self._container then self._container:Destroy() end
+    local w = self._window
+    for i, g in ipairs(w._groups) do
+        if g == self then table.remove(w._groups, i) break end
+    end
 end
 
 function Tab:Select(instant)
@@ -1895,15 +2246,21 @@ function Tab:Select(instant)
     closeOpenPanel(nil)
     w:_hideTooltip()
 
+    if self._group and not self._group._open then
+        self._group:SetOpen(true, instant)
+    end
+
     for _, t in ipairs(w._tabs) do
         local on = (t == self)
-        tween(t._button, {
-            BackgroundTransparency = on and 0 or 1,
-            BackgroundColor3 = on and ACTIVE.Surface or ACTIVE.ElementHover,
-        }, MOTION.quick)
-        tween(t._label, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText }, MOTION.quick)
-        if t._icon then
-            tween(t._icon, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText }, MOTION.quick)
+        local info = instant and TweenInfo.new(0) or MOTION.quick
+        tw(t._button, info, {
+            BackgroundTransparency = on and 0.86 or 1,
+            BackgroundColor3 = on and ACTIVE.Accent or ACTIVE.SurfaceHover,
+        })
+        tw(t._label, info, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText })
+        tw(t._bar, instant and TweenInfo.new(0) or MOTION.release, { Size = UDim2.new(0, 3, 0, on and 18 or 0) })
+        if t._iconKind == "image" then
+            tw(t._icon, info, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText })
         end
     end
 
@@ -1915,7 +2272,7 @@ function Tab:Select(instant)
         if instant then
             old.Visible = false
         else
-            local t = tw(old, MOTION.page, { Position = UDim2.new(0, -14, 0, 0) })
+            tw(old, MOTION.page, { Position = UDim2.new(0, -14, 0, 0) })
             task.delay(0.16, function() if old and old.Parent then old.Visible = false end end)
         end
     end
@@ -1926,16 +2283,7 @@ function Tab:Select(instant)
     else
         self._page.Position = UDim2.new(0, 16, 0, 0)
         tw(self._page, MOTION.page, { Position = UDim2.new(0, 0, 0, 0) })
-        for _, d in ipairs(self._page:GetChildren()) do
-            if d:IsA("GuiObject") then
-                local sc = d:FindFirstChildOfClass("UIScale") or new("UIScale", { Parent = d })
-                sc.Scale = 0.995
-                tw(sc, MOTION.page, { Scale = 1 })
-            end
-        end
     end
-
-    w:_layoutIndicator(instant)
 end
 
 function Tab:SetName(name)
@@ -1947,6 +2295,18 @@ end
 function Tab:SetSubtitle(str)
     self._subtitle = str or ""
     if self._window._activeTab == self then self._window._pageSub.Text = self._subtitle end
+end
+
+function Tab:SetIcon(icon)
+    local box = self._button:FindFirstChild("IconBox")
+    if box then box:Destroy() end
+    self._icon, self._iconKind = nil, nil
+    local inset = self._group and 12 or 0
+    local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText)
+    if ico then self._icon, self._iconKind = ico, kind end
+    local labelX = 12 + inset + (ico and w_ or 0)
+    self._label.Position = UDim2.new(0, labelX, 0, 0)
+    self._label.Size = UDim2.new(1, -(labelX + 10), 1, 0)
 end
 
 function Tab:CreateSection(config)
@@ -1983,6 +2343,18 @@ function Tab:CreateSection(config)
             ZIndex = 2,
             Parent = holder,
         })
+        local tick = new("Frame", {
+            Name = "Tick",
+            BackgroundColor3 = theme.Accent,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 0, 1, -8),
+            Size = UDim2.new(0, 3, 0, 12),
+            ZIndex = 2,
+            Parent = headWrap,
+        })
+        corner(tick, RADIUS.pill)
+        bind(section, tick, "BackgroundColor3", "Accent")
         local header = text({
             Text = config.Name,
             Font = FONT.medium,
@@ -1990,7 +2362,8 @@ function Tab:CreateSection(config)
             TextColor3 = theme.Text,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Bottom,
-            Size = UDim2.new(1, 0, 1, -6),
+            Position = UDim2.new(0, 10, 0, 0),
+            Size = UDim2.new(1, -10, 1, -6),
             ZIndex = 2,
             Parent = headWrap,
         })
@@ -2027,6 +2400,7 @@ function Section:Destroy()
     end
 end
 
+
 function Tab:Destroy()
     for i = #self._sections, 1, -1 do
         local s = self._sections[i]
@@ -2037,14 +2411,17 @@ function Tab:Destroy()
     for i, t in ipairs(w._tabs) do
         if t == self then table.remove(w._tabs, i) break end
     end
+    if self._group then
+        for i, t in ipairs(self._group._tabs) do
+            if t == self then table.remove(self._group._tabs, i) break end
+        end
+        self._group:_layout(true)
+    end
     if self._button then self._button:Destroy() end
     if self._page then self._page:Destroy() end
-    for i, t in ipairs(w._tabs) do t._button.LayoutOrder = i end
     if w._activeTab == self then
         w._activeTab = nil
         if w._tabs[1] then w._tabs[1]:Select(true) end
-    else
-        w:_layoutIndicator(true)
     end
 end
 
@@ -2070,7 +2447,10 @@ end
 
 function Window:SetVisible(state)
     if self._destroyed then return end
-    self._visible = state and true or false
+    state = state and true or false
+    self._visible = state
+    self._visToken = (self._visToken or 0) + 1
+    local token = self._visToken
     closeOpenPanel(nil)
     self:_hideTooltip()
     if self._blur then
@@ -2078,14 +2458,14 @@ function Window:SetVisible(state)
     end
     if state then
         self._root.Visible = true
-        self._scale.Scale = self._fit * 0.95
+        self._scale.Scale = self._fit * 0.96
         tw(self._scale, MOTION.reveal, { Scale = self._fit })
-        tw(self._main, MOTION.reveal, { BackgroundTransparency = self._config.Transparency or (ACTIVE.Dark and 0.02 or 0) })
     else
-        local t = tw(self._scale, MOTION.quick, { Scale = self._fit * 0.95 })
-        tw(self._main, MOTION.quick, { BackgroundTransparency = 1 })
-        task.delay(0.2, function()
-            if self._root and not self._visible then self._root.Visible = false end
+        tw(self._scale, MOTION.quick, { Scale = self._fit * 0.96 })
+        task.delay(0.17, function()
+            if self._root and self._visToken == token and not self._visible then
+                self._root.Visible = false
+            end
         end)
     end
 end
@@ -2164,13 +2544,19 @@ function Window:Search(query)
             end
             tabHits = tabHits + hits
         end
-        if not empty then
-            tab._button.Visible = tabHits > 0
-        else
-            tab._button.Visible = true
-        end
+        local tabMatch = empty or tabHits > 0 or (tab._name or ""):lower():find(query, 1, true) ~= nil
+        tab._button.Visible = tabMatch
     end
-    self:_layoutIndicator(true)
+
+    for _, g in ipairs(self._groups or {}) do
+        local any = false
+        for _, t in ipairs(g._tabs) do
+            if t._button.Visible then any = true break end
+        end
+        g._header.Visible = empty or any
+        if not empty and any and not g._open then g._open = true end
+        g:_layout(true)
+    end
 end
 local Element = {}
 Element.__index = Element
@@ -2235,21 +2621,18 @@ local function baseRow(section, config, opts)
     local iconInset = 0
     if config.Icon then
         iconInset = 32
-        local img = tostring(config.Icon)
-        if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
-        local ico = new("ImageLabel", {
+        local box = new("Frame", {
             Name = "RowIcon",
             BackgroundTransparency = 1,
-            Image = img,
-            ImageColor3 = theme.SubText,
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, -iconInset, 0.5, 0),
-            Size = UDim2.new(0, 20, 0, 20),
+            Size = UDim2.new(0, 22, 0, 22),
             ZIndex = 4,
             Parent = inner,
         })
-        bind(el, ico, "ImageColor3", "SubText")
-        el._icon = ico
+        local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5)
+        if kind == "image" then bind(el, ico, "ImageColor3", "SubText") end
+        el._icon, el._iconKind, el._iconBox = ico, kind, box
     end
     pad(inner, 12, 16, 12, 16 + iconInset)
     el._inner = inner
@@ -2382,11 +2765,12 @@ end
 
 function Element:SetCallback(fn) self._callback = fn end
 function Element:SetTooltip(str) self._tooltip = str end
-function Element:SetIcon(id)
-    if not self._icon then return end
-    local img = tostring(id or "")
-    if img ~= "" and not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
-    self._icon.Image = img
+function Element:SetIcon(icon)
+    if not self._iconBox then return end
+    if self._icon then self._icon:Destroy() end
+    local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5)
+    if kind == "image" then bind(self, ico, "ImageColor3", "SubText") end
+    self._icon, self._iconKind = ico, kind
 end
 
 function Element:SetLocked(state)
@@ -2540,8 +2924,12 @@ function Section:AddToggle(config)
     })
     corner(track_, RADIUS.pill)
     bind(el, track_, "BackgroundColor3", "Accent")
+    sheen(track_, 0.88, nil, 90)
     local ts = stroke(track_, theme.Track, 1, el.Value and 1 or 0)
     bind(el, ts, "Color", "Track")
+    local halo = accentGlow(track_, theme.Accent, 6, 0.82, 3)
+    halo.Visible = el.Value
+    for _, l in ipairs(halo:GetChildren()) do bind(el, l, "BackgroundColor3", "Accent") end
 
     local knob = new("Frame", {
         Name = "Knob",
@@ -2560,6 +2948,7 @@ function Section:AddToggle(config)
         local info = animate and MOTION.standard or TweenInfo.new(0)
         tw(track_, info, { BackgroundTransparency = on and 0 or 1, BackgroundColor3 = ACTIVE.Accent })
         tw(ts, info, { Transparency = on and 1 or 0, Color = ACTIVE.Track })
+        halo.Visible = on
         tw(knob, info, {
             Position = UDim2.new(0, on and KNOB_ON_X or KNOB_OFF_X, 0.5, 0),
             BackgroundColor3 = on and ACTIVE.KnobOn or ACTIVE.KnobOff,
@@ -2706,6 +3095,7 @@ function Section:AddSlider(config)
     })
     corner(fill, RADIUS.pill)
     bind(el, fill, "BackgroundColor3", "Accent")
+    sheen(fill, 0.80, nil, 0)
 
     local knob = new("Frame", {
         Name = "Knob",
@@ -4413,6 +4803,7 @@ function Window:Destroy()
         for _, section in ipairs(tab._sections) do untrack(section) end
         untrack(tab)
     end
+    for _, g in ipairs(self._groups or {}) do untrack(g) end
     untrack(self)
 
     if self._keyGui then pcall(function() self._keyGui:Destroy() end) end
@@ -4458,6 +4849,10 @@ function BPUI:SetTheme(theme)
         else
             w._theme = resolved
             applyBindings(w, resolved)
+            for _, g in ipairs(w._groups or {}) do
+                applyBindings(g, resolved)
+                if g._chev then tintIcon(g._chev, resolved.Muted) end
+            end
             for _, tab in ipairs(w._tabs) do
                 applyBindings(tab, resolved)
                 for _, section in ipairs(tab._sections) do
@@ -4558,7 +4953,6 @@ buildSettingsTab = function(window, config)
             Default = window._toggleKey,
             Mode = "Press",
             OnChanged = function(key) window:SetToggleKey(key) end,
-            Callback = function() window:Toggle() end,
         })
     end
 

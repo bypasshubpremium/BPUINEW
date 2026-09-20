@@ -1,0 +1,10 @@
+Claude outputs/
+test/
+games/
+Loader.lua
+Hub.lua
+Example.lua
+PROMPT.md
+DEPLOY.md
+*.log
+*.tmp

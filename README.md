@@ -3,7 +3,7 @@
 Premium UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own, and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
 
 ```lua
-local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/BPUI.lua"))()
+local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
 
 local Window = BPUI:CreateWindow({ Title = "My Hub", Subtitle = "v1.0" })
 local Tab = Window:CreateTab({ Name = "Main" })
@@ -229,12 +229,14 @@ Creating a window with a `Title` that already exists unloads the previous one fi
 
 ---
 
-## Hosting
-
-Upload `BPUI.lua` to a public repository and point at the raw file:
+## Loading
 
 ```
-https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/BPUI.lua
+https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua
 ```
 
-GitHub caches raw files for a few minutes. While testing, add a throwaway query string (`?v=2`) to force a fresh copy. For something stable, tag a release and load from the tag instead of `main` — then a bad commit cannot reach anyone who is already using it.
+GitHub caches raw files for a few minutes, so while you are testing add a throwaway query string (`?v=2`) to force a fresh copy. For anything people depend on, tag a release and load from the tag rather than `main` — a bad commit then cannot reach anyone already using it:
+
+```lua
+local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/v2.0.0/BPUI.lua"))()
+```

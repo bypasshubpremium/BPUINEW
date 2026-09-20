@@ -2,7 +2,7 @@
 
 local BPUI = (getgenv and getgenv().BPUI)
 if not BPUI then
-    BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/<user>/<repo>/main/BPUI.lua"))()
+    BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
 end
 
 local Window = BPUI:CreateWindow({

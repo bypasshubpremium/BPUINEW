@@ -2,7 +2,7 @@
 Works on **PC and Mobile**, makes **zero HTTP requests** (no `HttpError`), and runs on **low-level executors** because every executor function it touches is optional and guarded. Version 1.1.0.
 
 ```lua
-local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/<user>/<repo>/main/BPUI.lua"))()
+local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
 
 local Window = BPUI:CreateWindow({ Title = "My Hub", Subtitle = "v1" })
 local Tab = Window:CreateTab({ Name = "Main" })
@@ -212,10 +212,10 @@ BPUI:SetTheme("Lime")
 
 ## Hosting
 
-See `DEPLOY.md` for the full walkthrough. Short version: upload the folder to a public GitHub repository, replace `<user>/<repo>` in `Loader.lua`, and share
+See `DEPLOY.md` for the full walkthrough. Short version: upload the folder to a public GitHub repository, replace `bypasshubpremium/BPUINEW` in `Loader.lua`, and share
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/<user>/<repo>/main/Loader.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/Loader.lua"))()
 ```
 
 Re-running a script that creates a window with the same `Title` automatically removes the previous copy.

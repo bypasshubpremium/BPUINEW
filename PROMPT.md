@@ -9,7 +9,7 @@ You are writing Roblox Luau scripts that build their interface with **BPUI**, an
 ## Loading
 
 ```lua
-local BPUI = (getgenv and getgenv().BPUI) or loadstring(game:HttpGet("https://raw.githubusercontent.com/<user>/<repo>/main/BPUI.lua"))()
+local BPUI = (getgenv and getgenv().BPUI) or loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
 ```
 
 Do not load any other UI library. Do not fetch images, fonts or icons. Icons are optional; omit them unless the user gives asset ids.

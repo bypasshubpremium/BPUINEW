@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.0.0",
+    Version = "2.1.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -14,19 +14,8 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
-
-local uidCounter = 0
-local function uid()
-    uidCounter = uidCounter + 1
-    local ok, guid = pcall(function()
-        return HttpService:GenerateGUID(false):sub(1, 8)
-    end)
-    if ok and guid then return guid end
-    return string.format("%04X%04X", math.random(0, 65535), uidCounter % 65536)
-end
 
 local function viewport()
     local ok, cam = pcall(function() return workspace.CurrentCamera end)
@@ -42,6 +31,16 @@ local function viewport()
     return Vector2.new(1280, 720)
 end
 
+local uidCounter = 0
+local function uid()
+    uidCounter = uidCounter + 1
+    local ok, guid = pcall(function()
+        return HttpService:GenerateGUID(false):sub(1, 8)
+    end)
+    if ok and guid then return guid end
+    return string.format("%04X%04X", math.random(0, 65535), uidCounter % 65536)
+end
+
 local function env()
     local ok, g = pcall(function() return getgenv() end)
     if ok and type(g) == "table" then return g end
@@ -51,12 +50,9 @@ local ENV = env()
 
 local FS = { Available = false }
 do
-    local ok = pcall(function()
-        return type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
-    end)
-    if ok and type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function" then
+    if type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function" then
         FS.Available = true
-        FS.write = function(p, d) local s = pcall(writefile, p, d) return s end
+        FS.write = function(p, d) return (pcall(writefile, p, d)) end
         FS.read = function(p) local s, r = pcall(readfile, p) if s then return r end end
         FS.exists = function(p) local s, r = pcall(isfile, p) return s and r end
         FS.folder = function(p)
@@ -101,183 +97,191 @@ end
 local IS_MOBILE = UserInputService.TouchEnabled and not UserInputService.MouseEnabled and not UserInputService.KeyboardEnabled
 BPUI.IsMobile = IS_MOBILE
 
-local SP = { xs = 4, sm = 8, md = 12, lg = 16, xl = 24 }
-local RADIUS = { sm = 6, md = 10, lg = 14, xl = 18, pill = 999 }
-
-local MOTION = {
-    hover     = TweenInfo.new(0.14, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
-    press     = TweenInfo.new(0.07, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
-    release   = TweenInfo.new(0.28, Enum.EasingStyle.Back,  Enum.EasingDirection.Out),
-    quick     = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    standard  = TweenInfo.new(0.26, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    page      = TweenInfo.new(0.30, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    reveal    = TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-    ripple    = TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-}
+local function pickFont(names, fallback)
+    for _, n in ipairs(names) do
+        local ok, f = pcall(function() return Enum.Font[n] end)
+        if ok and f then return f end
+    end
+    return fallback
+end
 
 local FONT = {
-    display = Enum.Font.GothamBold,
-    strong  = Enum.Font.GothamBold,
-    medium  = Enum.Font.GothamMedium,
-    body    = Enum.Font.Gotham,
-    mono    = Enum.Font.Code,
+    bold   = pickFont({ "BuilderSansBold", "GothamBold" }, Enum.Font.SourceSansBold),
+    medium = pickFont({ "BuilderSansMedium", "GothamMedium" }, Enum.Font.SourceSansSemibold),
+    body   = pickFont({ "BuilderSans", "Gotham" }, Enum.Font.SourceSans),
+    mono   = pickFont({ "RobotoMono", "Code" }, Enum.Font.Code),
 }
 
-local SHADOW_ASSET = "rbxassetid://6014261993"
-local SHADOW_SLICE = Rect.new(49, 49, 450, 450)
-local GLOW_ASSET = "rbxassetid://6015897843"
+local RADIUS = { xs = 3, sm = 4, md = 6, lg = 8, xl = 8, pill = 999 }
+
+local MOTION = {
+    hover    = TweenInfo.new(0.10, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
+    press    = TweenInfo.new(0.06, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
+    release  = TweenInfo.new(0.22, Enum.EasingStyle.Back,  Enum.EasingDirection.Out),
+    quick    = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    standard = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    page     = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    reveal   = TweenInfo.new(0.36, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    ripple   = TweenInfo.new(0.50, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+}
 
 local function rgb(r, g, b) return Color3.fromRGB(r, g, b) end
 
-BPUI.Themes.Obsidian = {
-    Name = "Obsidian",
-    Backdrop     = rgb(10, 11, 14),
-    Window       = rgb(16, 17, 22),
-    Sidebar      = rgb(20, 21, 27),
-    Surface      = rgb(26, 28, 35),
-    SurfaceHover = rgb(33, 35, 44),
-    Element      = rgb(31, 33, 41),
-    ElementHover = rgb(38, 41, 51),
-    Stroke       = rgb(44, 47, 58),
-    StrokeSoft   = rgb(33, 35, 44),
-    Text         = rgb(238, 239, 244),
-    SubText      = rgb(142, 147, 161),
-    Muted        = rgb(95, 100, 114),
-    Accent       = rgb(94, 155, 255),
-    AccentText   = rgb(255, 255, 255),
-    Success      = rgb(58, 206, 130),
-    Warning      = rgb(255, 178, 66),
-    Danger       = rgb(255, 91, 91),
-    Track        = rgb(44, 47, 58),
-    Knob         = rgb(248, 249, 252),
+BPUI.Themes.FluentDark = {
+    Name = "FluentDark",
+    Window       = rgb(39, 39, 39),
+    Sidebar      = rgb(32, 32, 32),
+    TitleBar     = rgb(32, 32, 32),
+    Surface      = rgb(45, 45, 45),
+    SurfaceHover = rgb(52, 52, 52),
+    Element      = rgb(58, 58, 58),
+    ElementHover = rgb(66, 66, 66),
+    Stroke       = rgb(62, 62, 62),
+    StrokeSoft   = rgb(54, 54, 54),
+    Text         = rgb(255, 255, 255),
+    SubText      = rgb(200, 200, 200),
+    Muted        = rgb(148, 148, 148),
+    Accent       = rgb(96, 205, 255),
+    AccentText   = rgb(0, 0, 0),
+    Success      = rgb(108, 203, 95),
+    Warning      = rgb(252, 201, 90),
+    Danger       = rgb(255, 153, 164),
+    Track        = rgb(80, 80, 80),
+    KnobOn       = rgb(0, 0, 0),
+    KnobOff      = rgb(205, 205, 205),
     Dark         = true,
 }
 
-BPUI.Themes.Porcelain = {
-    Name = "Porcelain",
-    Backdrop     = rgb(226, 228, 235),
-    Window       = rgb(247, 248, 251),
-    Sidebar      = rgb(241, 242, 246),
-    Surface      = rgb(255, 255, 255),
-    SurfaceHover = rgb(246, 247, 250),
-    Element      = rgb(252, 252, 254),
-    ElementHover = rgb(243, 245, 249),
-    Stroke       = rgb(222, 225, 233),
-    StrokeSoft   = rgb(235, 237, 243),
-    Text         = rgb(20, 22, 28),
-    SubText      = rgb(104, 110, 125),
-    Muted        = rgb(150, 156, 170),
-    Accent       = rgb(42, 116, 246),
+BPUI.Themes.FluentLight = {
+    Name = "FluentLight",
+    Window       = rgb(243, 243, 243),
+    Sidebar      = rgb(238, 238, 238),
+    TitleBar     = rgb(238, 238, 238),
+    Surface      = rgb(251, 251, 251),
+    SurfaceHover = rgb(246, 246, 246),
+    Element      = rgb(255, 255, 255),
+    ElementHover = rgb(249, 249, 249),
+    Stroke       = rgb(226, 226, 226),
+    StrokeSoft   = rgb(235, 235, 235),
+    Text         = rgb(26, 26, 26),
+    SubText      = rgb(95, 95, 95),
+    Muted        = rgb(138, 138, 138),
+    Accent       = rgb(0, 103, 192),
     AccentText   = rgb(255, 255, 255),
-    Success      = rgb(30, 176, 104),
-    Warning      = rgb(226, 148, 22),
-    Danger       = rgb(224, 66, 66),
-    Track        = rgb(222, 225, 233),
-    Knob         = rgb(255, 255, 255),
+    Success      = rgb(15, 123, 15),
+    Warning      = rgb(157, 93, 0),
+    Danger       = rgb(196, 43, 28),
+    Track        = rgb(134, 134, 134),
+    KnobOn       = rgb(255, 255, 255),
+    KnobOff      = rgb(90, 90, 90),
     Dark         = false,
 }
 
-BPUI.Themes.Onyx = {
-    Name = "Onyx",
-    Backdrop     = rgb(8, 8, 9),
-    Window       = rgb(13, 13, 15),
-    Sidebar      = rgb(17, 17, 19),
-    Surface      = rgb(23, 23, 26),
-    SurfaceHover = rgb(30, 30, 34),
-    Element      = rgb(27, 27, 31),
-    ElementHover = rgb(35, 35, 40),
-    Stroke       = rgb(45, 45, 50),
-    StrokeSoft   = rgb(31, 31, 35),
-    Text         = rgb(242, 240, 236),
-    SubText      = rgb(150, 146, 138),
-    Muted        = rgb(104, 101, 95),
-    Accent       = rgb(228, 186, 108),
-    AccentText   = rgb(28, 22, 10),
-    Success      = rgb(126, 200, 120),
-    Warning      = rgb(233, 178, 80),
-    Danger       = rgb(230, 106, 96),
-    Track        = rgb(45, 45, 50),
-    Knob         = rgb(245, 243, 239),
+BPUI.Themes.Obsidian = {
+    Name = "Obsidian",
+    Window       = rgb(22, 22, 24),
+    Sidebar      = rgb(16, 16, 18),
+    TitleBar     = rgb(16, 16, 18),
+    Surface      = rgb(29, 29, 32),
+    SurfaceHover = rgb(36, 36, 40),
+    Element      = rgb(40, 40, 45),
+    ElementHover = rgb(48, 48, 54),
+    Stroke       = rgb(46, 46, 51),
+    StrokeSoft   = rgb(38, 38, 42),
+    Text         = rgb(248, 248, 250),
+    SubText      = rgb(186, 188, 196),
+    Muted        = rgb(132, 134, 143),
+    Accent       = rgb(120, 170, 255),
+    AccentText   = rgb(8, 12, 22),
+    Success      = rgb(94, 214, 142),
+    Warning      = rgb(252, 195, 88),
+    Danger       = rgb(255, 122, 132),
+    Track        = rgb(62, 62, 70),
+    KnobOn       = rgb(8, 12, 22),
+    KnobOff      = rgb(198, 200, 208),
     Dark         = true,
 }
 
-BPUI.Themes.Velvet = {
-    Name = "Velvet",
-    Backdrop     = rgb(13, 10, 19),
-    Window       = rgb(20, 16, 28),
-    Sidebar      = rgb(25, 20, 35),
-    Surface      = rgb(33, 26, 46),
-    SurfaceHover = rgb(42, 33, 58),
-    Element      = rgb(38, 30, 53),
-    ElementHover = rgb(48, 38, 66),
-    Stroke       = rgb(58, 46, 80),
-    StrokeSoft   = rgb(43, 34, 59),
-    Text         = rgb(240, 236, 250),
-    SubText      = rgb(160, 148, 184),
-    Muted        = rgb(112, 101, 134),
-    Accent       = rgb(170, 126, 255),
-    AccentText   = rgb(255, 255, 255),
-    Success      = rgb(104, 214, 156),
-    Warning      = rgb(255, 184, 92),
-    Danger       = rgb(255, 106, 134),
-    Track        = rgb(58, 46, 80),
-    Knob         = rgb(248, 245, 255),
+BPUI.Themes.Midnight = {
+    Name = "Midnight",
+    Window       = rgb(24, 30, 42),
+    Sidebar      = rgb(18, 23, 33),
+    TitleBar     = rgb(18, 23, 33),
+    Surface      = rgb(31, 39, 54),
+    SurfaceHover = rgb(38, 48, 66),
+    Element      = rgb(43, 54, 74),
+    ElementHover = rgb(51, 64, 87),
+    Stroke       = rgb(50, 63, 86),
+    StrokeSoft   = rgb(40, 50, 69),
+    Text         = rgb(238, 244, 255),
+    SubText      = rgb(176, 190, 214),
+    Muted        = rgb(124, 140, 167),
+    Accent       = rgb(118, 168, 255),
+    AccentText   = rgb(8, 14, 28),
+    Success      = rgb(86, 214, 156),
+    Warning      = rgb(250, 196, 96),
+    Danger       = rgb(255, 128, 140),
+    Track        = rgb(60, 74, 100),
+    KnobOn       = rgb(8, 14, 28),
+    KnobOff      = rgb(196, 208, 226),
     Dark         = true,
 }
 
-BPUI.Themes.Abyss = {
-    Name = "Abyss",
-    Backdrop     = rgb(6, 12, 18),
-    Window       = rgb(12, 20, 28),
-    Sidebar      = rgb(15, 25, 35),
-    Surface      = rgb(21, 33, 45),
-    SurfaceHover = rgb(28, 43, 57),
-    Element      = rgb(25, 38, 51),
-    ElementHover = rgb(32, 48, 64),
-    Stroke       = rgb(40, 60, 78),
-    StrokeSoft   = rgb(28, 43, 57),
-    Text         = rgb(232, 243, 248),
-    SubText      = rgb(134, 158, 174),
-    Muted        = rgb(92, 114, 130),
-    Accent       = rgb(64, 208, 200),
-    AccentText   = rgb(6, 30, 32),
-    Success      = rgb(72, 212, 158),
-    Warning      = rgb(246, 188, 86),
-    Danger       = rgb(255, 108, 108),
-    Track        = rgb(40, 60, 78),
-    Knob         = rgb(240, 250, 252),
+BPUI.Themes.Nord = {
+    Name = "Nord",
+    Window       = rgb(46, 52, 64),
+    Sidebar      = rgb(38, 43, 54),
+    TitleBar     = rgb(38, 43, 54),
+    Surface      = rgb(56, 63, 77),
+    SurfaceHover = rgb(64, 72, 88),
+    Element      = rgb(67, 76, 94),
+    ElementHover = rgb(76, 86, 106),
+    Stroke       = rgb(72, 81, 99),
+    StrokeSoft   = rgb(60, 68, 83),
+    Text         = rgb(236, 239, 244),
+    SubText      = rgb(191, 199, 213),
+    Muted        = rgb(143, 154, 173),
+    Accent       = rgb(136, 192, 208),
+    AccentText   = rgb(24, 29, 38),
+    Success      = rgb(163, 190, 140),
+    Warning      = rgb(235, 203, 139),
+    Danger       = rgb(191, 97, 106),
+    Track        = rgb(80, 90, 110),
+    KnobOn       = rgb(24, 29, 38),
+    KnobOff      = rgb(216, 222, 233),
     Dark         = true,
 }
 
 BPUI.Themes.Crimson = {
     Name = "Crimson",
-    Backdrop     = rgb(15, 9, 11),
-    Window       = rgb(23, 15, 17),
-    Sidebar      = rgb(28, 18, 21),
-    Surface      = rgb(38, 25, 28),
-    SurfaceHover = rgb(48, 32, 36),
-    Element      = rgb(43, 28, 32),
-    ElementHover = rgb(54, 36, 40),
-    Stroke       = rgb(66, 44, 49),
-    StrokeSoft   = rgb(48, 32, 36),
-    Text         = rgb(248, 238, 238),
-    SubText      = rgb(172, 146, 148),
-    Muted        = rgb(122, 100, 102),
-    Accent       = rgb(255, 92, 106),
-    AccentText   = rgb(255, 255, 255),
-    Success      = rgb(104, 206, 138),
-    Warning      = rgb(255, 180, 74),
-    Danger       = rgb(255, 92, 106),
-    Track        = rgb(66, 44, 49),
-    Knob         = rgb(252, 244, 244),
+    Window       = rgb(38, 30, 32),
+    Sidebar      = rgb(30, 23, 25),
+    TitleBar     = rgb(30, 23, 25),
+    Surface      = rgb(47, 37, 39),
+    SurfaceHover = rgb(56, 44, 47),
+    Element      = rgb(60, 47, 50),
+    ElementHover = rgb(70, 55, 58),
+    Stroke       = rgb(66, 52, 55),
+    StrokeSoft   = rgb(54, 42, 45),
+    Text         = rgb(250, 242, 242),
+    SubText      = rgb(206, 190, 191),
+    Muted        = rgb(154, 138, 140),
+    Accent       = rgb(255, 122, 132),
+    AccentText   = rgb(32, 10, 14),
+    Success      = rgb(126, 208, 142),
+    Warning      = rgb(250, 194, 102),
+    Danger       = rgb(255, 122, 132),
+    Track        = rgb(82, 64, 68),
+    KnobOn       = rgb(32, 10, 14),
+    KnobOff      = rgb(224, 210, 211),
     Dark         = true,
 }
 
-local ACTIVE = BPUI.Themes.Obsidian
+local ACTIVE = BPUI.Themes.FluentDark
 
 local function resolveTheme(v)
     local merged = {}
-    for k, val in pairs(BPUI.Themes.Obsidian) do merged[k] = val end
+    for k, val in pairs(BPUI.Themes.FluentDark) do merged[k] = val end
     local source
     if type(v) == "string" and BPUI.Themes[v] then source = BPUI.Themes[v]
     elseif type(v) == "table" then source = v end
@@ -288,21 +292,12 @@ local function resolveTheme(v)
     return merged
 end
 
-local function lighten(c, amt)
-    return Color3.new(
-        math.clamp(c.R + amt, 0, 1),
-        math.clamp(c.G + amt, 0, 1),
-        math.clamp(c.B + amt, 0, 1)
-    )
+local function shallowCopy(t)
+    local out = {}
+    if type(t) ~= "table" then return out end
+    for i, v in ipairs(t) do out[i] = v end
+    return out
 end
-
-local function darken(c, amt) return lighten(c, -amt) end
-
-local function mix(a, b, t)
-    return Color3.new(a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t)
-end
-
-local function luminance(c) return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B end
 
 local function new(class, props, kids)
     local inst = Instance.new(class)
@@ -367,40 +362,46 @@ local function sheen(parent, topAlpha, _unused, rotation)
 end
 
 local function edgeLight(strokeInst, theme)
-    local top = theme.Dark and 0.35 or 0.55
+    local top = theme.Dark and 0.42 or 0.6
     return new("UIGradient", {
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, top),
-            NumberSequenceKeypoint.new(0.55, 0.82),
-            NumberSequenceKeypoint.new(1, 0.9),
+            NumberSequenceKeypoint.new(0.6, 0.85),
+            NumberSequenceKeypoint.new(1, 0.92),
         }),
         Rotation = 90,
         Parent = strokeInst,
     })
 end
 
-local function dropShadow(parent, spread, alpha, zindex)
-    local s = new("ImageLabel", {
+local function dropShadow(parent, spread, radius, alpha, zindex)
+    spread = spread or 18
+    radius = radius or RADIUS.lg
+    alpha = alpha or 0.82
+    local layers = 5
+    local holder = new("Frame", {
         Name = "Shadow",
         BackgroundTransparency = 1,
-        Image = SHADOW_ASSET,
-        ImageColor3 = Color3.new(0, 0, 0),
-        ImageTransparency = alpha or 0.55,
-        ScaleType = Enum.ScaleType.Slice,
-        SliceCenter = SHADOW_SLICE,
-        Size = UDim2.new(1, (spread or 30) * 2, 1, (spread or 30) * 2),
-        Position = UDim2.new(0, -(spread or 30), 0, -(spread or 30) + 4),
+        Size = UDim2.new(1, spread * 2, 1, spread * 2),
+        Position = UDim2.new(0, -spread, 0, -spread + math.floor(spread * 0.25)),
         ZIndex = zindex or 0,
         Parent = parent,
     })
-    return s
-end
-
-local function shallowCopy(t)
-    local out = {}
-    if type(t) ~= "table" then return out end
-    for i, v in ipairs(t) do out[i] = v end
-    return out
+    for i = 1, layers do
+        local f = (i - 1) / (layers - 1)
+        local inset = spread * f
+        local layer = new("Frame", {
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BackgroundTransparency = 0.985 + (alpha - 0.985) * f,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, inset, 0, inset),
+            Size = UDim2.new(1, -inset * 2, 1, -inset * 2),
+            ZIndex = zindex or 0,
+            Parent = holder,
+        })
+        corner(layer, radius + (spread - inset) * 0.6)
+    end
+    return holder
 end
 
 local function tw(obj, info, props)
@@ -414,8 +415,116 @@ local function tween(obj, props, info)
     return tw(obj, info or MOTION.standard, props)
 end
 
-local keyPrompt
-local buildSettingsTab
+local function iconHolder(parent, size, zindex)
+    return new("Frame", {
+        Name = "Icon",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, size, 0, size),
+        ZIndex = zindex or 5,
+        Parent = parent,
+    })
+end
+
+local function bar(parent, w, h, rot, color, zindex, anchor, posX, posY)
+    local f = new("Frame", {
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        AnchorPoint = anchor or Vector2.new(0.5, 0.5),
+        Position = UDim2.new(posX or 0.5, 0, posY or 0.5, 0),
+        Size = UDim2.new(0, w, 0, h),
+        Rotation = rot or 0,
+        ZIndex = zindex or 5,
+        Parent = parent,
+    })
+    corner(f, h / 2)
+    return f
+end
+
+local function tintIcon(holder, color)
+    if not holder then return end
+    for _, c in ipairs(holder:GetChildren()) do
+        if c:IsA("Frame") then
+            c.BackgroundColor3 = color
+            local s = c:FindFirstChildOfClass("UIStroke")
+            if s then s.Color = color end
+        elseif c:IsA("UIStroke") then
+            c.Color = color
+        end
+    end
+    local s = holder:FindFirstChildOfClass("UIStroke")
+    if s then s.Color = color end
+end
+
+local function iconClose(parent, size, color, zindex)
+    local h = iconHolder(parent, size, zindex)
+    bar(h, size * 0.92, 1.4, 45, color, zindex)
+    bar(h, size * 0.92, 1.4, -45, color, zindex)
+    return h
+end
+
+local function iconMinimize(parent, size, color, zindex)
+    local h = iconHolder(parent, size, zindex)
+    bar(h, size * 0.86, 1.4, 0, color, zindex)
+    return h
+end
+
+local function iconChevron(parent, size, color, rotation, zindex)
+    local h = iconHolder(parent, size, zindex)
+    h.Rotation = rotation or 0
+    local len = size * 0.52
+    bar(h, len, 1.5, 45, color, zindex, Vector2.new(1, 0.5), 0.62, 0.5)
+    bar(h, len, 1.5, -45, color, zindex, Vector2.new(1, 0.5), 0.62, 0.5)
+    return h
+end
+
+local function iconCheck(parent, size, color, zindex)
+    local h = iconHolder(parent, size, zindex)
+    bar(h, size * 0.40, 1.7, 45, color, zindex, Vector2.new(0, 0.5), 0.14, 0.52)
+    bar(h, size * 0.66, 1.7, -48, color, zindex, Vector2.new(0, 0.5), 0.38, 0.78)
+    return h
+end
+
+local function iconSearch(parent, size, color, zindex)
+    local h = iconHolder(parent, size, zindex)
+    local ring = new("Frame", {
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(0, size * 0.66, 0, size * 0.66),
+        ZIndex = zindex or 5,
+        Parent = h,
+    })
+    corner(ring, RADIUS.pill)
+    stroke(ring, color, 1.4, 0)
+    bar(h, size * 0.34, 1.4, 45, color, zindex, Vector2.new(0, 0.5), 0.58, 0.62)
+    return h
+end
+
+local function fadeIcon(holder, transparency, info)
+    if not holder then return end
+    for _, c in ipairs(holder:GetChildren()) do
+        if c:IsA("Frame") then
+            tw(c, info or MOTION.quick, { BackgroundTransparency = transparency })
+        end
+    end
+end
+
+local function iconDot(parent, size, color, zindex)
+    local h = iconHolder(parent, size, zindex)
+    local d = new("Frame", {
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, size * 0.42, 0, size * 0.42),
+        ZIndex = zindex or 5,
+        Parent = h,
+    })
+    corner(d, RADIUS.pill)
+    return h
+end
 local function bind(owner, inst, prop, key)
     if not owner or not inst then return end
     owner._bindings = owner._bindings or {}
@@ -652,14 +761,14 @@ local function notifyHolder()
     local holder = new("Frame", {
         Name = "Holder",
         BackgroundTransparency = 1,
-        AnchorPoint = IS_MOBILE and Vector2.new(0.5, 0) or Vector2.new(1, 0),
-        Position = IS_MOBILE and UDim2.new(0.5, 0, 0, 12) or UDim2.new(1, -16, 0, 16),
-        Size = IS_MOBILE and UDim2.new(1, -24, 1, -24) or UDim2.new(0, 320, 1, -32),
+        AnchorPoint = IS_MOBILE and Vector2.new(0.5, 0) or Vector2.new(1, 1),
+        Position = IS_MOBILE and UDim2.new(0.5, 0, 0, 14) or UDim2.new(1, -18, 1, -18),
+        Size = IS_MOBILE and UDim2.new(1, -28, 1, -28) or UDim2.new(0, 330, 1, -36),
         Parent = sg,
     })
-    list(holder, 10)
-    local layout = holder:FindFirstChildOfClass("UIListLayout")
+    local layout = list(holder, 10)
     layout.HorizontalAlignment = IS_MOBILE and Enum.HorizontalAlignment.Center or Enum.HorizontalAlignment.Right
+    layout.VerticalAlignment = IS_MOBILE and Enum.VerticalAlignment.Top or Enum.VerticalAlignment.Bottom
     NOTIFY.holder = holder
     NOTIFY.gui = sg
     return holder
@@ -684,60 +793,59 @@ function BPUI:Notify(config)
     local card = new("Frame", {
         Name = "Toast",
         BackgroundColor3 = theme.Surface,
-        BackgroundTransparency = 0.04,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 62),
+        Size = UDim2.new(1, 0, 0, 56),
         AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = true,
         ZIndex = 2,
         Parent = holder,
     })
     corner(card, RADIUS.lg)
-    local cs = stroke(card, theme.Stroke, 1, 0.25)
+    local cs = stroke(card, theme.Stroke, 1, 0.1)
     edgeLight(cs, theme)
-    dropShadow(card, 26, 0.68, 1)
-    sheen(card, theme.Dark and 0.955 or 0.985, 1, 90)
+    dropShadow(card, 16, RADIUS.lg, 0.84, 1)
+    sheen(card, 0.975, nil, 90)
 
-    local bar = new("Frame", {
-        Name = "Bar",
+    local badge = new("Frame", {
+        Name = "Badge",
         BackgroundColor3 = accent,
         BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0, 0),
-        Size = UDim2.new(0, 3, 1, 0),
+        Position = UDim2.new(0, 14, 0, 15),
+        Size = UDim2.new(0, 20, 0, 20),
         ZIndex = 4,
         Parent = card,
     })
-    corner(bar, RADIUS.sm)
-
-    local glow = new("ImageLabel", {
-        BackgroundTransparency = 1,
-        Image = GLOW_ASSET,
-        ImageColor3 = accent,
-        ImageTransparency = 0.82,
-        Size = UDim2.new(0, 120, 1, 24),
-        Position = UDim2.new(0, -40, 0, -12),
-        ZIndex = 3,
-        Parent = card,
-    })
+    corner(badge, RADIUS.pill)
+    local glyph = theme.Dark and theme.Window or Color3.new(1, 1, 1)
+    if kind == "Success" then iconCheck(badge, 13, glyph, 5)
+    elseif kind == "Error" or kind == "Danger" then iconClose(badge, 9, glyph, 5)
+    elseif kind == "Warning" then
+        bar(badge, 1.8, 7, 0, glyph, 5, Vector2.new(0.5, 0.5), 0.5, 0.40)
+        bar(badge, 1.8, 1.8, 0, glyph, 5, Vector2.new(0.5, 0.5), 0.5, 0.70)
+    else iconDot(badge, 12, glyph, 5) end
 
     local body = new("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -20, 0, 0),
-        Position = UDim2.new(0, 14, 0, 0),
+        Position = UDim2.new(0, 44, 0, 0),
+        Size = UDim2.new(1, -78, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        ZIndex = 5,
+        ZIndex = 4,
         Parent = card,
     })
-    pad(body, 12, 8, 12, 4)
-    list(body, 3)
+    pad(body, 14, 0, 14, 0)
+    list(body, 2)
 
     local title = text({
         Text = config.Title or "Notification",
-        Font = FONT.strong,
+        Font = FONT.medium,
         TextSize = 13,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Size = UDim2.new(1, 0, 0, 15),
-        ZIndex = 6,
+        TextWrapped = true,
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        LayoutOrder = 1,
+        ZIndex = 5,
         Parent = body,
     })
 
@@ -752,44 +860,54 @@ function BPUI:Notify(config)
             TextWrapped = true,
             Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
-            ZIndex = 6,
+            LayoutOrder = 2,
+            ZIndex = 5,
             Parent = body,
         })
     end
 
-    local progress = new("Frame", {
-        Name = "Progress",
-        BackgroundColor3 = accent,
-        BackgroundTransparency = 0.45,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, 0),
-        Size = UDim2.new(1, 0, 0, 2),
-        ZIndex = 7,
-        Parent = card,
-    })
-
-    local hit = new("TextButton", {
+    local closeBtn = new("TextButton", {
+        Name = "Close",
+        BackgroundColor3 = theme.ElementHover,
         BackgroundTransparency = 1,
-        Text = "",
-        Size = UDim2.new(1, 0, 1, 0),
-        ZIndex = 8,
+        BorderSizePixel = 0,
         AutoButtonColor = false,
+        Text = "",
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -8, 0, 8),
+        Size = UDim2.new(0, 26, 0, 26),
+        ClipsDescendants = true,
+        ZIndex = 6,
         Parent = card,
     })
+    corner(closeBtn, RADIUS.sm)
+    local closeIcon = iconClose(closeBtn, 9, theme.Muted, 7)
 
-    card.Position = UDim2.new(0, IS_MOBILE and 0 or 40, 0, 0)
-    local sc = new("UIScale", { Scale = 0.96, Parent = card })
+    local progress
+    if (config.Duration or 4) > 0 then
+        progress = new("Frame", {
+            Name = "Progress",
+            BackgroundColor3 = accent,
+            BackgroundTransparency = 0.55,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 0, 1, 0),
+            Size = UDim2.new(1, 0, 0, 2),
+            ZIndex = 7,
+            Parent = card,
+        })
+    end
+
+    local sc = new("UIScale", { Scale = 0.97, Parent = card })
+    card.Position = UDim2.new(0, IS_MOBILE and 0 or 24, 0, 0)
     card.BackgroundTransparency = 1
-    tw(card, MOTION.reveal, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0.04 })
+    tw(card, MOTION.reveal, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 })
     tw(sc, MOTION.reveal, { Scale = 1 })
 
     local toast = { _card = card, _alive = true }
     local duration = config.Duration or 4
 
-    function toast:SetContent(str)
-        if content then content.Text = str end
-    end
+    function toast:SetContent(str) if content then content.Text = str end end
     function toast:SetTitle(str) title.Text = str end
     function toast:Dismiss()
         if not self._alive then return end
@@ -797,30 +915,49 @@ function BPUI:Notify(config)
         for i, v in ipairs(NOTIFY.items) do
             if v == self then table.remove(NOTIFY.items, i) break end
         end
-        tw(sc, MOTION.quick, { Scale = 0.94 })
-        local t = tw(card, MOTION.quick, { BackgroundTransparency = 1, Position = UDim2.new(0, IS_MOBILE and 0 or 30, 0, 0) })
+        tw(sc, MOTION.quick, { Scale = 0.96 })
+        local t = tw(card, MOTION.quick, { BackgroundTransparency = 1, Position = UDim2.new(0, IS_MOBILE and 0 or 20, 0, 0) })
         for _, d in ipairs(card:GetDescendants()) do
-            if d:IsA("TextLabel") then tw(d, MOTION.quick, { TextTransparency = 1 })
+            if d:IsA("TextLabel") or d:IsA("TextButton") then tw(d, MOTION.quick, { TextTransparency = 1 })
             elseif d:IsA("Frame") then tw(d, MOTION.quick, { BackgroundTransparency = 1 })
-            elseif d:IsA("ImageLabel") then tw(d, MOTION.quick, { ImageTransparency = 1 })
             elseif d:IsA("UIStroke") then tw(d, MOTION.quick, { Transparency = 1 }) end
         end
         if t then t.Completed:Connect(function() card:Destroy() end)
         else task.delay(0.3, function() card:Destroy() end) end
     end
 
-    hit.MouseButton1Click:Connect(function()
-        if config.Callback then task.spawn(config.Callback) end
-        toast:Dismiss()
-    end)
+    if not IS_MOBILE then
+        closeBtn.MouseEnter:Connect(function()
+            tween(closeBtn, { BackgroundTransparency = 0.15 }, MOTION.hover)
+            tintIcon(closeIcon, ACTIVE.Text)
+        end)
+        closeBtn.MouseLeave:Connect(function()
+            tween(closeBtn, { BackgroundTransparency = 1 }, MOTION.hover)
+            tintIcon(closeIcon, ACTIVE.Muted)
+        end)
+    end
+    closeBtn.MouseButton1Click:Connect(function() toast:Dismiss() end)
+
+    if config.Callback then
+        local hit = new("TextButton", {
+            BackgroundTransparency = 1,
+            Text = "",
+            AutoButtonColor = false,
+            Size = UDim2.new(1, -40, 1, 0),
+            ZIndex = 3,
+            Parent = card,
+        })
+        hit.MouseButton1Click:Connect(function()
+            task.spawn(config.Callback)
+            toast:Dismiss()
+        end)
+    end
 
     table.insert(NOTIFY.items, toast)
 
     if duration > 0 then
         tw(progress, TweenInfo.new(duration, Enum.EasingStyle.Linear), { Size = UDim2.new(0, 0, 0, 2) })
         task.delay(duration, function() toast:Dismiss() end)
-    else
-        progress.Visible = false
     end
 
     return toast
@@ -881,7 +1018,7 @@ function BPUI:CreateWindow(config)
     end
 
     if settings.Theme and BPUI.Themes[settings.Theme] then
-        theme = BPUI.Themes[settings.Theme]
+        theme = resolveTheme(settings.Theme)
         ACTIVE = theme
     end
     if settings.Accent and type(settings.Accent) == "table" then
@@ -889,8 +1026,8 @@ function BPUI:CreateWindow(config)
     end
 
     local vp = viewport()
-    local baseW = IS_MOBILE and 540 or 720
-    local baseH = IS_MOBILE and 360 or 480
+    local baseW = IS_MOBILE and 560 or 840
+    local baseH = IS_MOBILE and 400 or 580
     if config.Size then
         if typeof(config.Size) == "UDim2" then
             baseW, baseH = config.Size.X.Offset, config.Size.Y.Offset
@@ -903,7 +1040,7 @@ function BPUI:CreateWindow(config)
     end
 
     local fit = math.min(1, (vp.X - 32) / baseW, (vp.Y - 32) / baseH) * (config.Scale or 1)
-    local sidebarW = config.SidebarWidth or (IS_MOBILE and 150 or 196)
+    local sidebarW = config.SidebarWidth or (IS_MOBILE and 156 or 218)
 
     local self = setmetatable({}, Window)
     self._title = title
@@ -944,7 +1081,7 @@ function BPUI:CreateWindow(config)
     self._scale = rootScale
     self._fit = fit
 
-    dropShadow(root, 44, 0.62, 0)
+    dropShadow(root, 26, RADIUS.xl, 0.80, 0)
 
     local main = new("Frame", {
         Name = "Main",
@@ -975,7 +1112,7 @@ function BPUI:CreateWindow(config)
         Parent = main,
     })
     bind(self, sidebar, "BackgroundColor3", "Sidebar")
-    sheen(sidebar, theme.Dark and 0.97 or 1, 1, 90)
+    sheen(sidebar, 0.985, nil, 90)
     self._sidebar = sidebar
 
     local vdiv = new("Frame", {
@@ -999,7 +1136,7 @@ function BPUI:CreateWindow(config)
     })
     pad(brand, 0, 14, 0, 14)
 
-    local markSize = 30
+    local markSize = 28
     local mark = new("Frame", {
         Name = "Mark",
         BackgroundColor3 = theme.Accent,
@@ -1010,9 +1147,9 @@ function BPUI:CreateWindow(config)
         ZIndex = 4,
         Parent = brand,
     })
-    corner(mark, 9)
+    corner(mark, RADIUS.md)
     bind(self, mark, "BackgroundColor3", "Accent")
-    sheen(mark, 0.75, 1, 90)
+    sheen(mark, 0.82, nil, 90)
 
     if config.Icon then
         local img = tostring(config.Icon)
@@ -1031,7 +1168,7 @@ function BPUI:CreateWindow(config)
         if second then initials = initials .. second:upper() end
         text({
             Text = initials,
-            Font = FONT.strong,
+            Font = FONT.bold,
             TextSize = 13,
             TextColor3 = theme.AccentText,
             Size = UDim2.new(1, 0, 1, 0),
@@ -1051,7 +1188,7 @@ function BPUI:CreateWindow(config)
     local hasSub = config.Subtitle and config.Subtitle ~= ""
     local brandTitle = text({
         Text = title,
-        Font = FONT.strong,
+        Font = FONT.bold,
         TextSize = 14,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1099,17 +1236,15 @@ function BPUI:CreateWindow(config)
         local ss = stroke(searchWrap, theme.StrokeSoft, 1, 0.35)
         bind(self, ss, "Color", "StrokeSoft")
 
-        local glass = text({
-            Text = "\u{1F50E}",
-            Font = FONT.body,
-            TextSize = 11,
-            TextColor3 = theme.Muted,
-            Position = UDim2.new(0, 8, 0, 0),
-            Size = UDim2.new(0, 16, 1, 0),
+        local glassBox = new("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 9, 0, 0),
+            Size = UDim2.new(0, 14, 1, 0),
             ZIndex = 4,
             Parent = searchWrap,
         })
-        bind(self, glass, "TextColor3", "Muted")
+        local glass = iconSearch(glassBox, 13, theme.Muted, 5)
+        self._searchIcon = glass
 
         searchBox = new("TextBox", {
             BackgroundTransparency = 1,
@@ -1222,7 +1357,7 @@ function BPUI:CreateWindow(config)
 
     local pageTitle = text({
         Text = "",
-        Font = FONT.strong,
+        Font = FONT.bold,
         TextSize = 16,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1254,53 +1389,50 @@ function BPUI:CreateWindow(config)
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -14, 0.5, 0),
-        Size = UDim2.new(0, 70, 0, 28),
+        Size = UDim2.new(0, 72, 0, 28),
         ZIndex = 4,
         Parent = topbar,
     })
-    local clist = list(controls, 6, Enum.FillDirection.Horizontal)
+    local clist = list(controls, 4, Enum.FillDirection.Horizontal)
     clist.HorizontalAlignment = Enum.HorizontalAlignment.Right
     clist.VerticalAlignment = Enum.VerticalAlignment.Center
 
-    local function ctrlButton(glyph, hoverColor, order, fn)
+    local function ctrlButton(kind, danger, order, fn)
         local b = new("TextButton", {
-            BackgroundColor3 = theme.Element,
+            BackgroundColor3 = theme.ElementHover,
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
-            Size = UDim2.new(0, 28, 0, 28),
+            Size = UDim2.new(0, 32, 0, 28),
             LayoutOrder = order,
+            ClipsDescendants = true,
             ZIndex = 4,
             Parent = controls,
         })
         corner(b, RADIUS.sm)
-        local g = text({
-            Text = glyph,
-            Font = FONT.medium,
-            TextSize = 14,
-            TextColor3 = theme.SubText,
-            Size = UDim2.new(1, 0, 1, 0),
-            ZIndex = 5,
-            Parent = b,
-        })
-        bind(self, g, "TextColor3", "SubText")
+        local g
+        if kind == "close" then g = iconClose(b, 10, theme.SubText, 5)
+        else g = iconMinimize(b, 11, theme.SubText, 5) end
         if not IS_MOBILE then
             track(self, b.MouseEnter:Connect(function()
-                tween(b, { BackgroundTransparency = 0.12, BackgroundColor3 = hoverColor or ACTIVE.ElementHover }, MOTION.hover)
-                tween(g, { TextColor3 = hoverColor and ACTIVE.Text or ACTIVE.Text }, MOTION.hover)
+                tween(b, {
+                    BackgroundTransparency = 0,
+                    BackgroundColor3 = danger and ACTIVE.Danger or ACTIVE.ElementHover,
+                }, MOTION.hover)
+                tintIcon(g, danger and (ACTIVE.Dark and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)) or ACTIVE.Text)
             end))
             track(self, b.MouseLeave:Connect(function()
                 tween(b, { BackgroundTransparency = 1 }, MOTION.hover)
-                tween(g, { TextColor3 = ACTIVE.SubText }, MOTION.hover)
+                tintIcon(g, ACTIVE.SubText)
             end))
         end
-        pressable(self, b, b, fn, { rippleAlpha = 0.9 })
+        pressable(self, b, b, fn, { ripple = false })
         return b
     end
 
-    ctrlButton("\u{2013}", nil, 1, function() self:Minimize() end)
-    ctrlButton("\u{2715}", theme.Danger, 2, function()
+    ctrlButton("minimize", false, 1, function() self:Minimize() end)
+    ctrlButton("close", true, 2, function()
         if config.ConfirmClose then
             self:Dialog({
                 Title = "Close " .. title .. "?",
@@ -1394,17 +1526,18 @@ function BPUI:CreateWindow(config)
             Position = UDim2.new(0, 18, 0.5, -26),
             Size = UDim2.new(0, 52, 0, 52),
             Active = true,
+            ClipsDescendants = true,
             ZIndex = 50,
             Parent = sg,
         })
         corner(float, RADIUS.pill)
         bind(self, float, "BackgroundColor3", "Accent")
-        dropShadow(float, 22, 0.55, 49)
-        sheen(float, 0.72, 1, 90)
+        dropShadow(float, 14, RADIUS.pill, 0.78, 49)
+        sheen(float, 0.84, nil, 90)
         local fs = stroke(float, Color3.new(1, 1, 1), 1, 0.7)
         local ft = text({
             Text = config.FloatingText or title:sub(1, 2):upper(),
-            Font = FONT.strong,
+            Font = FONT.bold,
             TextSize = 15,
             TextColor3 = theme.AccentText,
             Size = UDim2.new(1, 0, 1, 0),
@@ -1569,15 +1702,15 @@ function Window:CreateTab(config)
         ZIndex = 2,
         Parent = self._pages,
     })
-    pad(page, 4, 20, 22, 20)
-    list(page, 18)
+    pad(page, 10, 22, 26, 22)
+    list(page, 20)
     tab._page = page
     bind(tab, page, "ScrollBarImageColor3", "Muted")
 
     if not IS_MOBILE then
         track(tab, button.MouseEnter:Connect(function()
             if self._activeTab == tab then return end
-            tween(button, { BackgroundTransparency = 0.55, BackgroundColor3 = ACTIVE.ElementHover }, MOTION.hover)
+            tween(button, { BackgroundTransparency = 0.45, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.Text }, MOTION.hover)
             if tab._icon then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover) end
         end))
@@ -1608,8 +1741,8 @@ function Tab:Select(instant)
     for _, t in ipairs(w._tabs) do
         local on = (t == self)
         tween(t._button, {
-            BackgroundTransparency = on and 0.86 or 1,
-            BackgroundColor3 = on and ACTIVE.Accent or ACTIVE.ElementHover,
+            BackgroundTransparency = on and 0 or 1,
+            BackgroundColor3 = on and ACTIVE.Surface or ACTIVE.ElementHover,
         }, MOTION.quick)
         tween(t._label, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText }, MOTION.quick)
         if t._icon then
@@ -1680,46 +1813,34 @@ function Tab:CreateSection(config)
         ZIndex = 2,
         Parent = self._page,
     })
-    list(holder, 8)
+    list(holder, 4)
     section._holder = holder
+    section._card = holder
 
     if config.Name and config.Name ~= "" then
-        local header = text({
-            Text = spaced(config.Name:upper()),
-            Font = FONT.strong,
-            TextSize = 10,
-            TextColor3 = theme.Muted,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Size = UDim2.new(1, 0, 0, 13),
-            LayoutOrder = 1,
+        local headWrap = new("Frame", {
+            Name = "Header",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 30),
+            LayoutOrder = 0,
             ZIndex = 2,
             Parent = holder,
         })
-        bind(section, header, "TextColor3", "Muted")
+        local header = text({
+            Text = config.Name,
+            Font = FONT.medium,
+            TextSize = 13,
+            TextColor3 = theme.Text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Bottom,
+            Size = UDim2.new(1, 0, 1, -6),
+            ZIndex = 2,
+            Parent = headWrap,
+        })
+        bind(section, header, "TextColor3", "Text")
         section._header = header
         section._headerRaw = config.Name
     end
-
-    local card = new("Frame", {
-        Name = "Card",
-        BackgroundColor3 = theme.Surface,
-        BackgroundTransparency = 0.02,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        ClipsDescendants = true,
-        LayoutOrder = 2,
-        ZIndex = 2,
-        Parent = holder,
-    })
-    corner(card, RADIUS.lg)
-    bind(section, card, "BackgroundColor3", "Surface")
-    local cstroke = stroke(card, theme.StrokeSoft, 1, 0.25)
-    edgeLight(cstroke, theme)
-    bind(section, cstroke, "Color", "StrokeSoft")
-    sheen(card, theme.Dark and 0.97 or 1, 1, 90)
-    list(card, 0)
-    section._card = card
 
     table.insert(self._sections, section)
     return section
@@ -1728,7 +1849,7 @@ end
 function Section:SetTitle(str)
     if self._header then
         self._headerRaw = str
-        self._header.Text = spaced(tostring(str):upper())
+        self._header.Text = tostring(str)
     end
 end
 
@@ -1890,7 +2011,7 @@ end
 local Element = {}
 Element.__index = Element
 
-local ROW_MIN = 46
+local ROW_MIN = 50
 
 local function registerFlag(el, flag)
     if not flag then return end
@@ -1923,7 +2044,6 @@ local function baseRow(section, config, opts)
     local row = new("Frame", {
         Name = "Row",
         BackgroundColor3 = theme.Surface,
-        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, ROW_MIN),
         AutomaticSize = (el._description ~= "" or opts.autoHeight) and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
@@ -1932,21 +2052,12 @@ local function baseRow(section, config, opts)
         ZIndex = 3,
         Parent = section._card,
     })
+    corner(row, RADIUS.sm)
+    bind(el, row, "BackgroundColor3", "Surface")
+    local rowStroke = stroke(row, theme.StrokeSoft, 1, 0.15)
+    bind(el, rowStroke, "Color", "StrokeSoft")
     el._root = row
-
-    local sep = new("Frame", {
-        Name = "Sep",
-        BackgroundColor3 = theme.StrokeSoft,
-        BackgroundTransparency = 0.35,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 14, 0, 0),
-        Size = UDim2.new(1, -14, 0, 1),
-        Visible = #section._elements > 0,
-        ZIndex = 5,
-        Parent = row,
-    })
-    bind(el, sep, "BackgroundColor3", "StrokeSoft")
-    el._sep = sep
+    el._stroke = rowStroke
 
     local autoY = row.AutomaticSize == Enum.AutomaticSize.Y
     local inner = new("Frame", {
@@ -1957,7 +2068,7 @@ local function baseRow(section, config, opts)
         ZIndex = 3,
         Parent = row,
     })
-    pad(inner, 11, 14, 11, 14)
+    pad(inner, 12, 16, 12, 16)
     el._inner = inner
     el._autoY = autoY
 
@@ -2021,8 +2132,8 @@ local function baseRow(section, config, opts)
         right = new("Frame", {
             Name = "Right",
             BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, 0, 0, 0),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0),
             Size = autoY and UDim2.new(0, rightW, 0, opts.controlHeight or 24)
                           or UDim2.new(0, rightW, 1, 0),
             ZIndex = 4,
@@ -2112,10 +2223,8 @@ function Element:Destroy()
         for i, e in ipairs(s._elements) do
             if e == self then table.remove(s._elements, i) break end
         end
-        if s._elements[1] and s._elements[1]._sep then s._elements[1]._sep.Visible = false end
         for i, e in ipairs(s._elements) do
             if e._root then e._root.LayoutOrder = i end
-            if e._sep then e._sep.Visible = i > 1 end
         end
     end
     local w = self._window
@@ -2128,15 +2237,15 @@ function Element:Destroy()
     self._destroyed = true
 end
 
-local function rowHover(el, opts)
+local function rowHover(el)
     if IS_MOBILE then return end
     local row = el._root
     track(el, row.MouseEnter:Connect(function()
         if el._locked then return end
-        tween(row, { BackgroundTransparency = 0.55, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
+        tween(row, { BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
     end))
     track(el, row.MouseLeave:Connect(function()
-        tween(row, { BackgroundTransparency = 1 }, MOTION.hover)
+        tween(row, { BackgroundColor3 = ACTIVE.Surface }, MOTION.hover)
     end))
 end
 
@@ -2160,30 +2269,28 @@ function Section:AddButton(config)
     el.Type = "Button"
     el._callback = config.Callback
 
-    local chev = text({
-        Text = "\u{203A}",
-        Font = FONT.strong,
-        TextSize = 18,
-        TextColor3 = theme.Muted,
+    local chevBox = new("Frame", {
+        BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 20, 0, 20),
+        Size = UDim2.new(0, 18, 0, 18),
         ZIndex = 4,
         Parent = el._right,
     })
-    bind(el, chev, "TextColor3", "Muted")
+    local chev = iconChevron(chevBox, 13, theme.Muted, 0, 5)
+    el._paint = function() tintIcon(chev, ACTIVE.Muted) end
 
     rowHover(el)
     local hit = hitButton(el)
     if not IS_MOBILE then
         track(el, hit.MouseEnter:Connect(function()
             if el._locked then return end
-            tween(chev, { TextColor3 = ACTIVE.Accent }, MOTION.hover)
-            tween(chev, { Position = UDim2.new(1, 3, 0.5, 0) }, MOTION.hover)
+            tintIcon(chev, ACTIVE.Text)
+            tween(chevBox, { Position = UDim2.new(1, 3, 0.5, 0) }, MOTION.hover)
         end))
         track(el, hit.MouseLeave:Connect(function()
-            tween(chev, { TextColor3 = ACTIVE.Muted }, MOTION.hover)
-            tween(chev, { Position = UDim2.new(1, 0, 0.5, 0) }, MOTION.hover)
+            tintIcon(chev, ACTIVE.Muted)
+            tween(chevBox, { Position = UDim2.new(1, 0, 0.5, 0) }, MOTION.hover)
         end))
     end
 
@@ -2198,59 +2305,50 @@ end
 function Section:AddToggle(config)
     config = config or {}
     local theme = ACTIVE
-    local el = baseRow(self, config, { controlWidth = 44, controlHeight = 24 })
+    local el = baseRow(self, config, { controlWidth = 40, controlHeight = 20 })
     el.Type = "Toggle"
     el._callback = config.Callback
     el.Value = config.Default and true or false
 
+    local KNOB_OFF_X, KNOB_ON_X = 4, 23
+
     local track_ = new("Frame", {
         Name = "Track",
-        BackgroundColor3 = el.Value and theme.Accent or theme.Track,
+        BackgroundColor3 = theme.Accent,
+        BackgroundTransparency = el.Value and 0 or 1,
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 42, 0, 24),
+        Size = UDim2.new(0, 40, 0, 20),
         ZIndex = 4,
         Parent = el._right,
     })
     corner(track_, RADIUS.pill)
-    local ts = stroke(track_, theme.StrokeSoft, 1, 0.5)
-    sheen(track_, 0.86, 1, 90)
+    bind(el, track_, "BackgroundColor3", "Accent")
+    local ts = stroke(track_, theme.Track, 1, el.Value and 1 or 0)
+    bind(el, ts, "Color", "Track")
 
     local knob = new("Frame", {
         Name = "Knob",
-        BackgroundColor3 = theme.Knob,
+        BackgroundColor3 = el.Value and theme.KnobOn or theme.KnobOff,
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, el.Value and 20 or 2, 0.5, 0),
-        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(0, el.Value and KNOB_ON_X or KNOB_OFF_X, 0.5, 0),
+        Size = UDim2.new(0, 13, 0, 13),
         ZIndex = 6,
         Parent = track_,
     })
     corner(knob, RADIUS.pill)
-    bind(el, knob, "BackgroundColor3", "Knob")
-    dropShadow(knob, 8, 0.72, 5)
-
-    local glow = new("ImageLabel", {
-        BackgroundTransparency = 1,
-        Image = GLOW_ASSET,
-        ImageColor3 = theme.Accent,
-        ImageTransparency = el.Value and 0.72 or 1,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(1, 26, 1, 26),
-        ZIndex = 3,
-        Parent = track_,
-    })
-    bind(el, glow, "ImageColor3", "Accent")
 
     local function paint(animate)
         local on = el.Value
         local info = animate and MOTION.standard or TweenInfo.new(0)
-        tw(track_, info, { BackgroundColor3 = on and ACTIVE.Accent or ACTIVE.Track })
-        tw(knob, info, { Position = UDim2.new(0, on and 20 or 2, 0.5, 0) })
-        tw(glow, info, { ImageTransparency = on and 0.72 or 1 })
-        tw(ts, info, { Transparency = on and 0.8 or 0.5 })
+        tw(track_, info, { BackgroundTransparency = on and 0 or 1, BackgroundColor3 = ACTIVE.Accent })
+        tw(ts, info, { Transparency = on and 1 or 0, Color = ACTIVE.Track })
+        tw(knob, info, {
+            Position = UDim2.new(0, on and KNOB_ON_X or KNOB_OFF_X, 0.5, 0),
+            BackgroundColor3 = on and ACTIVE.KnobOn or ACTIVE.KnobOff,
+        })
     end
     el._paint = paint
 
@@ -2266,18 +2364,27 @@ function Section:AddToggle(config)
 
     rowHover(el)
     local hit = hitButton(el)
-    pressable(el, hit, knob, function()
+    pressable(el, hit, nil, function()
         el:Set(not el.Value)
-    end, { ripple = false, pressScale = 0.9 })
+    end, { ripple = false })
 
     track(el, hit.InputBegan:Connect(function(input)
         if isClick(input) and not el._locked then
-            tw(knob, MOTION.press, { Size = UDim2.new(0, 22, 0, 20) })
+            tw(knob, MOTION.press, { Size = UDim2.new(0, 17, 0, 13) })
         end
     end))
     track(el, hit.InputEnded:Connect(function(input)
-        if isClick(input) then tw(knob, MOTION.release, { Size = UDim2.new(0, 20, 0, 20) }) end
+        if isClick(input) then tw(knob, MOTION.release, { Size = UDim2.new(0, 13, 0, 13) }) end
     end))
+    if not IS_MOBILE then
+        track(el, hit.MouseEnter:Connect(function()
+            if el._locked then return end
+            tw(knob, MOTION.hover, { Size = UDim2.new(0, 15, 0, 15) })
+        end))
+        track(el, hit.MouseLeave:Connect(function()
+            tw(knob, MOTION.hover, { Size = UDim2.new(0, 13, 0, 13) })
+        end))
+    end
 
     if el.Value and config.Callback and config.FireOnCreate ~= false then
         task.defer(function() if not el._destroyed then config.Callback(true) end end)
@@ -2312,12 +2419,12 @@ function Section:AddSlider(config)
     local valueBtn = new("TextButton", {
         Name = "Value",
         BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.25,
+        BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, 0, 0, -1),
+        Position = UDim2.new(1, 0, 0, -2),
         Size = UDim2.new(0, 62, 0, 22),
         ZIndex = 7,
         Parent = el._inner,
@@ -2332,7 +2439,7 @@ function Section:AddSlider(config)
         Text = fmt(config.Default or min) .. suffix,
         Font = FONT.medium,
         TextSize = 11,
-        TextColor3 = theme.Accent,
+        TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Center,
         ClearTextOnFocus = false,
         TextEditable = config.Typeable ~= false,
@@ -2340,29 +2447,28 @@ function Section:AddSlider(config)
         ZIndex = 8,
         Parent = valueBtn,
     })
-    bind(el, valueBox, "TextColor3", "Accent")
+    bind(el, valueBox, "TextColor3", "Text")
 
     el._left.Size = UDim2.new(1, -74, 0, 0)
+
+    local spacer = new("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 12),
+        LayoutOrder = 9,
+        Parent = el._left,
+    })
 
     local bar = new("Frame", {
         Name = "Bar",
         BackgroundColor3 = theme.Track,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 6),
-        Position = UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(1, 0, 0, 4),
         LayoutOrder = 10,
         ZIndex = 4,
         Parent = el._left,
     })
     corner(bar, RADIUS.pill)
     bind(el, bar, "BackgroundColor3", "Track")
-
-    local spacer = new("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 6),
-        LayoutOrder = 9,
-        Parent = el._left,
-    })
 
     local fill = new("Frame", {
         Name = "Fill",
@@ -2374,30 +2480,44 @@ function Section:AddSlider(config)
     })
     corner(fill, RADIUS.pill)
     bind(el, fill, "BackgroundColor3", "Accent")
-    new("UIGradient", {
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(215, 215, 215)),
-        }),
-        Rotation = 90,
-        Parent = fill,
-    })
 
     local knob = new("Frame", {
         Name = "Knob",
-        BackgroundColor3 = theme.Knob,
+        BackgroundColor3 = theme.Element,
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.new(0, 14, 0, 14),
+        Size = UDim2.new(0, 20, 0, 20),
         ZIndex = 7,
         Parent = bar,
     })
     corner(knob, RADIUS.pill)
-    bind(el, knob, "BackgroundColor3", "Knob")
-    dropShadow(knob, 9, 0.7, 6)
-    local ks = stroke(knob, theme.Accent, 2, 0.15)
-    bind(el, ks, "Color", "Accent")
+    bind(el, knob, "BackgroundColor3", "Element")
+    local ks = stroke(knob, theme.Stroke, 1, 0.1)
+    bind(el, ks, "Color", "Stroke")
+
+    local core = new("Frame", {
+        Name = "Core",
+        BackgroundColor3 = theme.Accent,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 10, 0, 10),
+        ZIndex = 8,
+        Parent = knob,
+    })
+    corner(core, RADIUS.pill)
+    bind(el, core, "BackgroundColor3", "Accent")
+
+    if not IS_MOBILE then
+        track(el, bar.MouseEnter:Connect(function()
+            if el._locked then return end
+            tw(core, MOTION.hover, { Size = UDim2.new(0, 12, 0, 12) })
+        end))
+        track(el, bar.MouseLeave:Connect(function()
+            tw(core, MOTION.hover, { Size = UDim2.new(0, 10, 0, 10) })
+        end))
+    end
 
     local function snap(v)
         v = math.clamp(v, min, max)
@@ -2448,7 +2568,7 @@ function Section:AddSlider(config)
         dragging = true
         activeInput = input
         scrolls = ancestorScrolling(bar, false)
-        tw(knob, MOTION.quick, { Size = UDim2.new(0, 18, 0, 18) })
+        tw(core, MOTION.quick, { Size = UDim2.new(0, 8, 0, 8) })
         el:Set(fromInput(input.Position.X))
     end))
 
@@ -2460,7 +2580,7 @@ function Section:AddSlider(config)
             for _, s in ipairs(scrolls) do pcall(function() s.ScrollingEnabled = true end) end
             scrolls = nil
         end
-        tw(knob, MOTION.release, { Size = UDim2.new(0, 14, 0, 14) })
+        tw(core, MOTION.release, { Size = UDim2.new(0, 10, 0, 10) })
     end
     track(el, UserInputService.InputEnded:Connect(function(input)
         if ownsInput(activeInput, input) then endDrag() end
@@ -2478,10 +2598,10 @@ function Section:AddSlider(config)
     end))
     if not IS_MOBILE then
         track(el, valueBtn.MouseEnter:Connect(function()
-            tween(valueBtn, { BackgroundTransparency = 0.05 }, MOTION.hover)
+            tween(valueBtn, { BackgroundColor3 = ACTIVE.ElementHover }, MOTION.hover)
         end))
         track(el, valueBtn.MouseLeave:Connect(function()
-            tween(valueBtn, { BackgroundTransparency = 0.25 }, MOTION.hover)
+            tween(valueBtn, { BackgroundColor3 = ACTIVE.Element }, MOTION.hover)
         end))
     end
 
@@ -2495,7 +2615,7 @@ local function pill(parent, theme, width, height)
     local p = new("TextButton", {
         Name = "Pill",
         BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.15,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
@@ -2526,7 +2646,7 @@ function Section:AddDropdown(config)
 
     local head, hs = pill(el._inner, theme, 124, 26)
     head.AnchorPoint = Vector2.new(1, 0)
-    head.Position = UDim2.new(1, 0, 0, 0)
+    head.Position = UDim2.new(1, 0, 0, el._descLabel and 3 or 0)
     bind(el, head, "BackgroundColor3", "Element")
     bind(el, hs, "Color", "StrokeSoft")
 
@@ -2544,18 +2664,15 @@ function Section:AddDropdown(config)
     })
     bind(el, headText, "TextColor3", "SubText")
 
-    local caret = text({
-        Text = "\u{25BE}",
-        Font = FONT.body,
-        TextSize = 10,
-        TextColor3 = theme.Muted,
+    local caretBox = new("Frame", {
+        BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.new(0, 12, 0, 12),
+        Size = UDim2.new(0, 14, 0, 14),
         ZIndex = 8,
         Parent = head,
     })
-    bind(el, caret, "TextColor3", "Muted")
+    local caret = iconChevron(caretBox, 11, theme.Muted, 90, 9)
 
     local menu = new("Frame", {
         Name = "Menu",
@@ -2656,7 +2773,8 @@ function Section:AddDropdown(config)
         for opt, row in pairs(el._rows) do
             local on = isSelected(opt)
             tween(row.check, { BackgroundTransparency = on and 0 or 1, BackgroundColor3 = ACTIVE.Accent }, MOTION.quick)
-            tween(row.mark, { TextTransparency = on and 0 or 1, TextColor3 = ACTIVE.AccentText }, MOTION.quick)
+            fadeIcon(row.mark, on and 0 or 1)
+            if on then tintIcon(row.mark, ACTIVE.AccentText) end
             if row.stroke then row.stroke.Color = ACTIVE.Muted end
             tween(row.label, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText }, MOTION.quick)
             tween(row.frame, { BackgroundTransparency = on and 0.85 or 1, BackgroundColor3 = ACTIVE.Accent }, MOTION.quick)
@@ -2681,11 +2799,11 @@ function Section:AddDropdown(config)
         el._open = state
         if state then
             menu.Visible = true
-            tw(caret, MOTION.standard, { Rotation = 180 })
+            tw(caret, MOTION.standard, { Rotation = -90 })
             tw(menu, MOTION.standard, { Size = UDim2.new(1, 0, 0, menuHeight()) })
             tween(hs, { Color = ACTIVE.Accent, Transparency = 0.1 }, MOTION.hover)
         else
-            tw(caret, MOTION.standard, { Rotation = 0 })
+            tw(caret, MOTION.standard, { Rotation = 90 })
             local t = tw(menu, MOTION.standard, { Size = UDim2.new(1, 0, 0, 0) })
             tween(hs, { Color = ACTIVE.StrokeSoft, Transparency = 0.4 }, MOTION.hover)
             if t then t.Completed:Connect(function() if not el._open then menu.Visible = false end end)
@@ -2740,16 +2858,8 @@ function Section:AddDropdown(config)
             corner(check, el._multi and 4 or RADIUS.pill)
             local cstroke = stroke(check, ACTIVE.Muted, 1, 0.5)
 
-            local mark = text({
-                Text = "\u{2713}",
-                Font = FONT.strong,
-                TextSize = 10,
-                TextColor3 = ACTIVE.AccentText,
-                TextTransparency = 1,
-                Size = UDim2.new(1, 0, 1, 0),
-                ZIndex = 8,
-                Parent = check,
-            })
+            local mark = iconCheck(check, 10, ACTIVE.AccentText, 8)
+            fadeIcon(mark, 1, TweenInfo.new(0))
 
             local lbl = text({
                 Text = opt,
@@ -2793,10 +2903,10 @@ function Section:AddDropdown(config)
     pressable(el, head, head, function() setOpen(not el._open) end, { rippleAlpha = 0.92, pressScale = 0.98 })
     if not IS_MOBILE then
         track(el, head.MouseEnter:Connect(function()
-            if not el._open then tween(head, { BackgroundTransparency = 0.02 }, MOTION.hover) end
+            if not el._open then tween(head, { BackgroundColor3 = ACTIVE.ElementHover }, MOTION.hover) end
         end))
         track(el, head.MouseLeave:Connect(function()
-            tween(head, { BackgroundTransparency = 0.15 }, MOTION.hover)
+            tween(head, { BackgroundColor3 = ACTIVE.Element }, MOTION.hover)
         end))
     end
 
@@ -2857,7 +2967,7 @@ function Section:AddInput(config)
 
     local wrap = new("Frame", {
         BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.15,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
@@ -2889,8 +2999,8 @@ function Section:AddInput(config)
     bind(el, box, "PlaceholderColor3", "Muted")
 
     track(el, box.Focused:Connect(function()
-        tween(ws, { Color = ACTIVE.Accent, Transparency = 0.05 }, MOTION.hover)
-        tween(wrap, { BackgroundTransparency = 0.02 }, MOTION.hover)
+        tween(ws, { Color = ACTIVE.Accent, Transparency = 0 }, MOTION.hover)
+        tween(wrap, { BackgroundColor3 = ACTIVE.ElementHover }, MOTION.hover)
     end))
 
     local function commit(text_, enter)
@@ -2903,8 +3013,8 @@ function Section:AddInput(config)
 
     track(el, box.FocusLost:Connect(function(enter)
         tween(ws, { Color = ACTIVE.StrokeSoft, Transparency = 0.4 }, MOTION.hover)
+        tween(wrap, { BackgroundColor3 = ACTIVE.Element }, MOTION.hover)
         if el._locked then box.Text = el.Value return end
-        tween(wrap, { BackgroundTransparency = 0.15 }, MOTION.hover)
         commit(box.Text, enter)
         if config.RemoveTextAfterFocusLost then box.Text = "" el.Value = "" end
     end))
@@ -3081,12 +3191,12 @@ function Section:AddColorPicker(config)
 
     local swatchBtn = new("TextButton", {
         BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.15,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(1, 0, 0, el._descLabel and 3 or 0),
         Size = UDim2.new(0, 82, 0, 26),
         ClipsDescendants = true,
         ZIndex = 7,
@@ -3125,7 +3235,7 @@ function Section:AddColorPicker(config)
     local panel = new("Frame", {
         Name = "Panel",
         BackgroundColor3 = theme.Element,
-        BackgroundTransparency = 0.2,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 0),
         ClipsDescendants = true,
@@ -3229,7 +3339,7 @@ function Section:AddColorPicker(config)
 
     local hexWrap = new("Frame", {
         BackgroundColor3 = theme.Surface,
-        BackgroundTransparency = 0.2,
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 10, 0, 124),
         Size = UDim2.new(1, -20, 0, 26),
@@ -3387,24 +3497,10 @@ function Section:AddLabel(config)
         Parent = self._card,
     })
     el._root = row
-    pad(row, 11, 14, 11, 14)
-
-    local sep = new("Frame", {
-        BackgroundColor3 = theme.StrokeSoft,
-        BackgroundTransparency = 0.35,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0, 0),
-        Size = UDim2.new(1, 0, 0, 1),
-        Visible = #self._elements > 0,
-        ZIndex = 4,
-        Parent = row,
-    })
-    sep.Position = UDim2.new(0, 0, 0, -11)
-    bind(el, sep, "BackgroundColor3", "StrokeSoft")
-    el._sep = sep
+    pad(row, 4, 4, 6, 4)
 
     local style = config.Style or "Default"
-    local color = theme.Text
+    local color = theme.SubText
     if style == "Accent" then color = theme.Accent
     elseif style == "Sub" then color = theme.SubText
     elseif style == "Success" then color = theme.Success
@@ -3413,7 +3509,7 @@ function Section:AddLabel(config)
 
     local lbl = text({
         Text = el._name,
-        Font = config.Bold and FONT.strong or FONT.body,
+        Font = config.Bold and FONT.bold or FONT.body,
         TextSize = config.TextSize or 12,
         TextColor3 = color,
         TextXAlignment = config.Center and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left,
@@ -3456,7 +3552,7 @@ function Section:AddParagraph(config)
     }, { autoHeight = true, wrapName = true })
     el.Type = "Paragraph"
     el.Value = el._description
-    if el._nameLabel then el._nameLabel.Font = FONT.strong end
+    if el._nameLabel then el._nameLabel.Font = FONT.bold end
 
     function el:SetTitle(str) self:SetName(str) end
     function el:SetContent(str)
@@ -3569,10 +3665,10 @@ function Window:Dialog(config)
     corner(card, RADIUS.lg)
     local cs = stroke(card, theme.Stroke, 1, 0.2)
     edgeLight(cs, theme)
-    dropShadow(card, 34, 0.58, 40)
-    sheen(card, theme.Dark and 0.96 or 1, 1, 90)
+    dropShadow(card, 22, RADIUS.lg, 0.82, 40)
+    sheen(card, 0.975, nil, 90)
 
-    local sc = new("UIScale", { Scale = 0.93, Parent = card })
+    local sc = new("UIScale", { Scale = 0.94, Parent = card })
     tw(sc, MOTION.reveal, { Scale = 1 })
 
     local body = new("Frame", {
@@ -3587,7 +3683,7 @@ function Window:Dialog(config)
 
     text({
         Text = config.Title or "Confirm",
-        Font = FONT.strong,
+        Font = FONT.bold,
         TextSize = 15,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -3747,10 +3843,10 @@ keyPrompt = function(window, config, title)
     corner(card, RADIUS.xl)
     local cs = stroke(card, theme.Stroke, 1, 0.15)
     edgeLight(cs, theme)
-    dropShadow(card, 40, 0.6, 0)
-    sheen(card, theme.Dark and 0.96 or 1, 1, 90)
+    dropShadow(card, 24, RADIUS.xl, 0.82, 0)
+    sheen(card, 0.975, nil, 90)
 
-    local sc = new("UIScale", { Scale = 0.94, Parent = card })
+    local sc = new("UIScale", { Scale = 0.95, Parent = card })
     tw(sc, MOTION.reveal, { Scale = 1 })
 
     local body = new("Frame", {
@@ -3764,8 +3860,8 @@ keyPrompt = function(window, config, title)
     list(body, 10)
 
     text({
-        Text = config.Title or (title .. " \u{2022} Key System"),
-        Font = FONT.strong,
+        Text = config.Title or (title .. " - Key System"),
+        Font = FONT.bold,
         TextSize = 16,
         TextColor3 = theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,

@@ -1,6 +1,6 @@
 # BPUI
 
-Premium UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own, and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
+Windows 11 Fluent UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own, and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
 
 ```lua
 local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
@@ -23,7 +23,9 @@ That is the whole install. One file, one line.
 
 ## What it looks like
 
-A dark glass window with a tab sidebar on the left and grouped cards on the right. Every surface is lit from above with a gradient, edges catch light along the top, and the window floats on a soft shadow. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while an accent pill glides to the new tab. Six palettes ship with it and the accent colour is yours to set.
+Windows 11 Fluent Design, built to match: a navigation pane on the left, and on the right a page where every setting sits in its own rounded card. Surfaces are lit from above with a gradient, edges catch light along the top, and the window rests on a layered shadow. Pressing anything sends a ripple out from the point of contact; switching tabs slides the page in while an accent bar glides to the new item. Toggles, sliders, combo boxes and caption buttons follow the real Fluent geometry and motion curves.
+
+Nothing is fetched to draw it. Every icon — the close cross, the chevrons, the checkmarks, the magnifier, the toast badges — is composed from rotated frames, and the shadows are stacked frames rather than an image. No asset can fail to load, and no glyph can come back as a missing-character box.
 
 ---
 
@@ -65,12 +67,12 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
 | `Icon` | number/string | — | `rbxassetid` shown in the sidebar and the mobile bubble |
-| `Theme` | string/table | `"Obsidian"` | See Themes |
+| `Theme` | string/table | `"FluentDark"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
-| `Size` | UDim2/Vector2 | 720×480 (540×360 mobile) | Auto-fitted to the screen |
+| `Size` | UDim2/Vector2 | 840×580 (560×400 mobile) | Auto-fitted to the screen |
 | `Scale` | number | `1` | Multiplier applied after the auto-fit |
 | `RememberSize` | bool | `true` | Restore the last resized size |
-| `SidebarWidth` | number | 196 (150 mobile) | |
+| `SidebarWidth` | number | 218 (156 mobile) | |
 | `ToggleKey` | KeyCode/string | `RightShift` | Show/hide key on PC |
 | `FloatingButton` | bool | mobile only | Force the bubble on PC too |
 | `FloatingText` | string | first two letters | Text inside the bubble |
@@ -189,25 +191,28 @@ If a config loads before some elements exist — because your script yields, say
 
 ### Themes
 
-`Obsidian` (default), `Porcelain`, `Onyx`, `Velvet`, `Abyss`, `Crimson`.
+`FluentDark` (default), `FluentLight`, `Obsidian`, `Midnight`, `Nord`, `Crimson`. The first two are the Windows 11 system palettes; the rest keep the same Fluent structure with different neutrals.
 
 ```lua
-BPUI:SetTheme("Velvet")
+BPUI:SetTheme("FluentLight")
 BPUI:SetAccent(Color3.fromRGB(255, 120, 60))
 ```
 
-Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to Obsidian:
+Every window repaints live and the choice is remembered. A custom theme is a table with any of these keys; anything you leave out falls back to FluentDark:
 
 ```
-Backdrop Window Sidebar Surface SurfaceHover Element ElementHover
+Window Sidebar TitleBar Surface SurfaceHover Element ElementHover
 Stroke StrokeSoft Text SubText Muted Accent AccentText
-Success Warning Danger Track Knob Dark
+Success Warning Danger Track KnobOn KnobOff Dark
 ```
+
+`KnobOn` is the toggle knob while the switch is on (it sits on the accent, so it should contrast with it) and `KnobOff` is the knob while it is off. `Dark` tells the library which way to angle its edge highlights.
 
 ```lua
 BPUI.Themes.Lime = {
     Accent = Color3.fromRGB(150, 230, 90),
     AccentText = Color3.fromRGB(10, 25, 5),
+    KnobOn = Color3.fromRGB(10, 25, 5),
     Dark = true,
 }
 BPUI:SetTheme("Lime")

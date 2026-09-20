@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.1.0",
+    Version = "2.2.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -415,6 +415,64 @@ local function tween(obj, props, info)
     return tw(obj, info or MOTION.standard, props)
 end
 
+local function closeOpenPanel(except)
+    local open = BPUI._openPanel
+    if open and open ~= except and not open._destroyed and open.Close then
+        pcall(function() open:Close() end)
+    end
+    if open ~= except then BPUI._openPanel = nil end
+end
+
+local function effectiveScale(inst)
+    local s = 1
+    local node = inst
+    while node and node ~= game do
+        if node:IsA("GuiObject") then
+            local us = node:FindFirstChildOfClass("UIScale")
+            if us then s = s * us.Scale end
+        end
+        node = node.Parent
+    end
+    return s
+end
+
+local function autoSlot(parent, opts)
+    opts = opts or {}
+    local minH = opts.MinHeight or 0
+    local slot = new("Frame", {
+        Name = opts.Name or "Slot",
+        BackgroundTransparency = 1,
+        AnchorPoint = opts.AnchorPoint or Vector2.new(0, 0),
+        Position = opts.Position or UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(opts.WidthScale or 1, opts.WidthOffset or 0, 0, minH),
+        AutomaticSize = Enum.AutomaticSize.None,
+        LayoutOrder = opts.LayoutOrder or 0,
+        ZIndex = opts.ZIndex or 1,
+        Parent = parent,
+    })
+    local card = new("Frame", {
+        Name = "Card",
+        BackgroundColor3 = opts.Color or Color3.new(0, 0, 0),
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 0, 0, minH),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = opts.Clip ~= false,
+        ZIndex = (opts.ZIndex or 1) + 1,
+        Parent = slot,
+    })
+    local function sync()
+        local h = card.AbsoluteSize.Y / math.max(effectiveScale(card), 0.01)
+        if h > 0 and math.abs(h - slot.Size.Y.Offset) > 0.5 then
+            slot.Size = UDim2.new(slot.Size.X.Scale, slot.Size.X.Offset, 0, h)
+        end
+    end
+    local conn = card:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
+    task.defer(sync)
+    return slot, card, conn
+end
+
 local function iconHolder(parent, size, zindex)
     return new("Frame", {
         Name = "Icon",
@@ -474,15 +532,15 @@ local function iconChevron(parent, size, color, rotation, zindex)
     local h = iconHolder(parent, size, zindex)
     h.Rotation = rotation or 0
     local len = size * 0.52
-    bar(h, len, 1.5, 45, color, zindex, Vector2.new(1, 0.5), 0.62, 0.5)
-    bar(h, len, 1.5, -45, color, zindex, Vector2.new(1, 0.5), 0.62, 0.5)
+    bar(h, len, 1.5, 45, color, zindex, Vector2.new(0.5, 0.5), 0.44, 0.32)
+    bar(h, len, 1.5, -45, color, zindex, Vector2.new(0.5, 0.5), 0.44, 0.68)
     return h
 end
 
 local function iconCheck(parent, size, color, zindex)
     local h = iconHolder(parent, size, zindex)
-    bar(h, size * 0.40, 1.7, 45, color, zindex, Vector2.new(0, 0.5), 0.14, 0.52)
-    bar(h, size * 0.66, 1.7, -48, color, zindex, Vector2.new(0, 0.5), 0.38, 0.78)
+    bar(h, size * 0.40, 1.7, 45, color, zindex, Vector2.new(0.5, 0.5), 0.29, 0.65)
+    bar(h, size * 0.66, 1.7, -48, color, zindex, Vector2.new(0.5, 0.5), 0.64, 0.54)
     return h
 end
 
@@ -498,7 +556,7 @@ local function iconSearch(parent, size, color, zindex)
     })
     corner(ring, RADIUS.pill)
     stroke(ring, color, 1.4, 0)
-    bar(h, size * 0.34, 1.4, 45, color, zindex, Vector2.new(0, 0.5), 0.58, 0.62)
+    bar(h, size * 0.34, 1.4, 45, color, zindex, Vector2.new(0.5, 0.5), 0.68, 0.68)
     return h
 end
 
@@ -528,6 +586,10 @@ end
 local function bind(owner, inst, prop, key)
     if not owner or not inst then return end
     owner._bindings = owner._bindings or {}
+    for i = #owner._bindings, 1, -1 do
+        local b = owner._bindings[i]
+        if b.inst == inst and b.prop == prop then table.remove(owner._bindings, i) end
+    end
     table.insert(owner._bindings, { inst = inst, prop = prop, key = key })
     if ACTIVE[key] then inst[prop] = ACTIVE[key] end
 end
@@ -762,8 +824,8 @@ local function notifyHolder()
         Name = "Holder",
         BackgroundTransparency = 1,
         AnchorPoint = IS_MOBILE and Vector2.new(0.5, 0) or Vector2.new(1, 1),
-        Position = IS_MOBILE and UDim2.new(0.5, 0, 0, 14) or UDim2.new(1, -18, 1, -18),
-        Size = IS_MOBILE and UDim2.new(1, -28, 1, -28) or UDim2.new(0, 330, 1, -36),
+        Position = IS_MOBILE and UDim2.new(0.5, 0, 0, 48) or UDim2.new(1, -18, 1, -18),
+        Size = IS_MOBILE and UDim2.new(1, -28, 1, -64) or UDim2.new(0, 330, 1, -36),
         Parent = sg,
     })
     local layout = list(holder, 10)
@@ -790,20 +852,16 @@ function BPUI:Notify(config)
         if oldest and oldest.Dismiss then pcall(oldest.Dismiss, oldest) end
     end
 
-    local card = new("Frame", {
+    local slot, card, syncConn = autoSlot(holder, {
         Name = "Toast",
-        BackgroundColor3 = theme.Surface,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 56),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        ClipsDescendants = true,
-        ZIndex = 2,
-        Parent = holder,
+        MinHeight = 56,
+        Color = theme.Surface,
+        ZIndex = 1,
     })
     corner(card, RADIUS.lg)
     local cs = stroke(card, theme.Stroke, 1, 0.1)
     edgeLight(cs, theme)
-    dropShadow(card, 16, RADIUS.lg, 0.84, 1)
+    dropShadow(slot, 16, RADIUS.lg, 0.84, 1)
     sheen(card, 0.975, nil, 90)
 
     local badge = new("Frame", {
@@ -899,12 +957,12 @@ function BPUI:Notify(config)
     end
 
     local sc = new("UIScale", { Scale = 0.97, Parent = card })
-    card.Position = UDim2.new(0, IS_MOBILE and 0 or 24, 0, 0)
+    card.Position = UDim2.new(0.5, IS_MOBILE and 0 or 24, 0.5, 0)
     card.BackgroundTransparency = 1
-    tw(card, MOTION.reveal, { Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0 })
+    tw(card, MOTION.reveal, { Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 0 })
     tw(sc, MOTION.reveal, { Scale = 1 })
 
-    local toast = { _card = card, _alive = true }
+    local toast = { _card = card, _slot = slot, _alive = true }
     local duration = config.Duration or 4
 
     function toast:SetContent(str) if content then content.Text = str end end
@@ -915,15 +973,22 @@ function BPUI:Notify(config)
         for i, v in ipairs(NOTIFY.items) do
             if v == self then table.remove(NOTIFY.items, i) break end
         end
+        pcall(function() syncConn:Disconnect() end)
         tw(sc, MOTION.quick, { Scale = 0.96 })
-        local t = tw(card, MOTION.quick, { BackgroundTransparency = 1, Position = UDim2.new(0, IS_MOBILE and 0 or 20, 0, 0) })
-        for _, d in ipairs(card:GetDescendants()) do
+        local t = tw(card, MOTION.quick, { BackgroundTransparency = 1, Position = UDim2.new(0.5, IS_MOBILE and 0 or 20, 0.5, 0) })
+        for _, d in ipairs(slot:GetDescendants()) do
             if d:IsA("TextLabel") or d:IsA("TextButton") then tw(d, MOTION.quick, { TextTransparency = 1 })
             elseif d:IsA("Frame") then tw(d, MOTION.quick, { BackgroundTransparency = 1 })
             elseif d:IsA("UIStroke") then tw(d, MOTION.quick, { Transparency = 1 }) end
         end
-        if t then t.Completed:Connect(function() card:Destroy() end)
-        else task.delay(0.3, function() card:Destroy() end) end
+        local done = false
+        local function finish()
+            if done then return end
+            done = true
+            pcall(function() slot:Destroy() end)
+        end
+        if t then t.Completed:Connect(finish) end
+        task.delay(0.3, finish)
     end
 
     if not IS_MOBILE then
@@ -1519,20 +1584,27 @@ function BPUI:CreateWindow(config)
 
     local float
     if IS_MOBILE or config.FloatingButton then
+        local floatWrap = new("Frame", {
+            Name = "FloatWrap",
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 18, 0.5, -26),
+            Size = UDim2.new(0, 52, 0, 52),
+            ZIndex = 49,
+            Parent = sg,
+        })
+        dropShadow(floatWrap, 14, RADIUS.pill, 0.78, 49)
         float = new("Frame", {
             Name = "Float",
             BackgroundColor3 = theme.Accent,
             BorderSizePixel = 0,
-            Position = UDim2.new(0, 18, 0.5, -26),
-            Size = UDim2.new(0, 52, 0, 52),
+            Size = UDim2.new(1, 0, 1, 0),
             Active = true,
             ClipsDescendants = true,
             ZIndex = 50,
-            Parent = sg,
+            Parent = floatWrap,
         })
         corner(float, RADIUS.pill)
         bind(self, float, "BackgroundColor3", "Accent")
-        dropShadow(float, 14, RADIUS.pill, 0.78, 49)
         sheen(float, 0.84, nil, 90)
         local fs = stroke(float, Color3.new(1, 1, 1), 1, 0.7)
         local ft = text({
@@ -1546,7 +1618,7 @@ function BPUI:CreateWindow(config)
         })
         bind(self, ft, "TextColor3", "AccentText")
         local moved = false
-        draggable(self, float, float, {
+        draggable(self, float, floatWrap, {
             clamp = true,
             onStart = function() moved = false end,
             onMove = function() moved = true end,
@@ -1554,8 +1626,67 @@ function BPUI:CreateWindow(config)
         pressable(self, float, float, function()
             if not moved then self:Toggle() end
         end, { rippleAlpha = 0.85 })
-        self._float = float
+        self._float = floatWrap
+        self._floatButton = float
     end
+
+    if config.Acrylic then
+        pcall(function()
+            local Lighting = game:GetService("Lighting")
+            local blur = Instance.new("BlurEffect")
+            blur.Name = "BPUI_Acrylic_" .. sg.Name
+            blur.Size = 0
+            blur.Parent = Lighting
+            self._blur = blur
+            self._blurStrength = config.AcrylicStrength or 14
+            tw(blur, MOTION.reveal, { Size = self._blurStrength })
+        end)
+    end
+
+    local tipHolder = new("Frame", {
+        Name = "Tooltip",
+        BackgroundColor3 = theme.Surface,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        Visible = false,
+        ZIndex = 90,
+        Parent = sg,
+    })
+    corner(tipHolder, RADIUS.sm)
+    local tipStroke = stroke(tipHolder, theme.Stroke, 1, 0.1)
+    bind(self, tipHolder, "BackgroundColor3", "Surface")
+    bind(self, tipStroke, "Color", "Stroke")
+    local tipText = text({
+        Text = "",
+        Font = FONT.body,
+        TextSize = 12,
+        TextColor3 = theme.Text,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Size = UDim2.new(0, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        ZIndex = 91,
+        Parent = tipHolder,
+    })
+    new("UISizeConstraint", { MaxSize = Vector2.new(260, 400), Parent = tipText })
+    pad(tipHolder, 6, 10, 6, 10)
+    bind(self, tipText, "TextColor3", "Text")
+    self._tip = tipHolder
+    self._tipText = tipText
+
+    track(self, UserInputService.InputBegan:Connect(function(input)
+        if not isClick(input) or self._destroyed then return end
+        local open = BPUI._openPanel
+        if not open or open._destroyed or not open._root then return end
+        local ok = pcall(function()
+            local p, s = open._root.AbsolutePosition, open._root.AbsoluteSize
+            local x, y = input.Position.X, input.Position.Y
+            if x < p.X or y < p.Y or x > p.X + s.X or y > p.Y + s.Y then
+                closeOpenPanel(nil)
+            end
+        end)
+    end))
 
     local toggleKey = keyFromValue(settings.ToggleKey or config.ToggleKey or "RightShift")
     self._toggleKey = toggleKey
@@ -1586,6 +1717,30 @@ function BPUI:CreateWindow(config)
     end
 
     return self
+end
+
+function Window:_showTooltip(str, anchor)
+    if IS_MOBILE or self._destroyed or not self._tip then return end
+    if not str or str == "" then return end
+    self._tipText.Text = str
+    local ok, mouse = pcall(function() return UserInputService:GetMouseLocation() end)
+    local x, y = 0, 0
+    if ok and mouse then x, y = mouse.X, mouse.Y end
+    local vp = viewport()
+    local ap, as = anchor.AbsolutePosition, anchor.AbsoluteSize
+    local ty = ap.Y + as.Y + 6
+    if ty + 60 > vp.Y then ty = ap.Y - 40 end
+    local tx = math.clamp(x + 12, 8, vp.X - 280)
+    self._tip.Position = UDim2.new(0, tx, 0, ty)
+    self._tip.Visible = true
+    self._tip.BackgroundTransparency = 1
+    self._tipText.TextTransparency = 1
+    tw(self._tip, MOTION.quick, { BackgroundTransparency = 0 })
+    tw(self._tipText, MOTION.quick, { TextTransparency = 0 })
+end
+
+function Window:_hideTooltip()
+    if self._tip then self._tip.Visible = false end
 end
 
 function Window:_saveSettings()
@@ -1737,6 +1892,8 @@ function Tab:Select(instant)
     if w._destroyed or w._activeTab == self then return end
     local previous = w._activeTab
     w._activeTab = self
+    closeOpenPanel(nil)
+    w:_hideTooltip()
 
     for _, t in ipairs(w._tabs) do
         local on = (t == self)
@@ -1914,6 +2071,11 @@ end
 function Window:SetVisible(state)
     if self._destroyed then return end
     self._visible = state and true or false
+    closeOpenPanel(nil)
+    self:_hideTooltip()
+    if self._blur then
+        pcall(function() tw(self._blur, MOTION.reveal, { Size = state and self._blurStrength or 0 }) end)
+    end
     if state then
         self._root.Visible = true
         self._scale.Scale = self._fit * 0.95
@@ -1938,6 +2100,8 @@ function Window:Minimize(state)
     state = state and true or false
     if self._minimized == state then return end
     self._minimized = state
+    closeOpenPanel(nil)
+    self:_hideTooltip()
     if self._minimized then
         self._restoreSize = self._root.Size
         self._sidebar.Visible = false
@@ -1957,7 +2121,7 @@ function Window:Minimize(state)
             self._pageTitle.Text = self._activeTab._name
             self._pageSub.Text = self._activeTab._subtitle
         end
-        tw(self._root, MOTION.standard, { Size = self._restoreSize or UDim2.new(0, 720, 0, 480) })
+        tw(self._root, MOTION.standard, { Size = self._restoreSize or UDim2.new(0, 840, 0, 580) })
     end
 end
 
@@ -2068,9 +2232,46 @@ local function baseRow(section, config, opts)
         ZIndex = 3,
         Parent = row,
     })
-    pad(inner, 12, 16, 12, 16)
+    local iconInset = 0
+    if config.Icon then
+        iconInset = 32
+        local img = tostring(config.Icon)
+        if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
+        local ico = new("ImageLabel", {
+            Name = "RowIcon",
+            BackgroundTransparency = 1,
+            Image = img,
+            ImageColor3 = theme.SubText,
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, -iconInset, 0.5, 0),
+            Size = UDim2.new(0, 20, 0, 20),
+            ZIndex = 4,
+            Parent = inner,
+        })
+        bind(el, ico, "ImageColor3", "SubText")
+        el._icon = ico
+    end
+    pad(inner, 12, 16, 12, 16 + iconInset)
     el._inner = inner
     el._autoY = autoY
+    el._tooltip = config.Tooltip
+
+    if el._tooltip and not IS_MOBILE then
+        local token = 0
+        track(el, row.MouseEnter:Connect(function()
+            token = token + 1
+            local mine = token
+            task.delay(0.55, function()
+                if mine == token and not el._destroyed and el._window and el._window._showTooltip then
+                    el._window:_showTooltip(el._tooltip, row)
+                end
+            end)
+        end))
+        track(el, row.MouseLeave:Connect(function()
+            token = token + 1
+            if el._window and el._window._hideTooltip then el._window:_hideTooltip() end
+        end))
+    end
 
     local rightW = opts.controlWidth or 0
     local left = new("Frame", {
@@ -2180,6 +2381,13 @@ function Element:SetVisible(v)
 end
 
 function Element:SetCallback(fn) self._callback = fn end
+function Element:SetTooltip(str) self._tooltip = str end
+function Element:SetIcon(id)
+    if not self._icon then return end
+    local img = tostring(id or "")
+    if img ~= "" and not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
+    self._icon.Image = img
+end
 
 function Element:SetLocked(state)
     self._locked = state and true or false
@@ -2216,6 +2424,7 @@ function Element:Unlock() self:SetLocked(false) end
 function Element:Get() return self.Value end
 
 function Element:Destroy()
+    if BPUI._openPanel == self then BPUI._openPanel = nil end
     untrack(self)
     if self._flag then BPUI.Flags[self._flag] = nil end
     local s = self._section
@@ -2268,6 +2477,12 @@ function Section:AddButton(config)
     local el = baseRow(self, config, { controlWidth = 26, controlHeight = 26 })
     el.Type = "Button"
     el._callback = config.Callback
+    local style = config.Style or "Default"
+    if el._nameLabel and style ~= "Default" then
+        local key = style == "Danger" and "Danger" or style == "Accent" and "Accent" or "Text"
+        el._nameLabel.TextColor3 = theme[key]
+        bind(el, el._nameLabel, "TextColor3", key)
+    end
 
     local chevBox = new("Frame", {
         BackgroundTransparency = 1,
@@ -2453,22 +2668,33 @@ function Section:AddSlider(config)
 
     local spacer = new("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 12),
+        Size = UDim2.new(1, 0, 0, 2),
         LayoutOrder = 9,
         Parent = el._left,
     })
 
     local bar = new("Frame", {
         Name = "Bar",
-        BackgroundColor3 = theme.Track,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 4),
+        Size = UDim2.new(1, 0, 0, 24),
         LayoutOrder = 10,
         ZIndex = 4,
         Parent = el._left,
     })
-    corner(bar, RADIUS.pill)
-    bind(el, bar, "BackgroundColor3", "Track")
+
+    local rail = new("Frame", {
+        Name = "Rail",
+        BackgroundColor3 = theme.Track,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.new(1, 0, 0, 4),
+        ZIndex = 4,
+        Parent = bar,
+    })
+    corner(rail, RADIUS.pill)
+    bind(el, rail, "BackgroundColor3", "Track")
 
     local fill = new("Frame", {
         Name = "Fill",
@@ -2476,7 +2702,7 @@ function Section:AddSlider(config)
         BorderSizePixel = 0,
         Size = UDim2.new(0, 0, 1, 0),
         ZIndex = 5,
-        Parent = bar,
+        Parent = rail,
     })
     corner(fill, RADIUS.pill)
     bind(el, fill, "BackgroundColor3", "Accent")
@@ -2489,7 +2715,7 @@ function Section:AddSlider(config)
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.new(0, 20, 0, 20),
         ZIndex = 7,
-        Parent = bar,
+        Parent = rail,
     })
     corner(knob, RADIUS.pill)
     bind(el, knob, "BackgroundColor3", "Element")
@@ -2796,13 +3022,18 @@ function Section:AddDropdown(config)
     end
 
     local function setOpen(state)
+        if state and el._locked then return end
         el._open = state
         if state then
+            closeOpenPanel(el)
+            BPUI._openPanel = el
+            if el._window and el._window._hideTooltip then el._window:_hideTooltip() end
             menu.Visible = true
             tw(caret, MOTION.standard, { Rotation = -90 })
             tw(menu, MOTION.standard, { Size = UDim2.new(1, 0, 0, menuHeight()) })
             tween(hs, { Color = ACTIVE.Accent, Transparency = 0.1 }, MOTION.hover)
         else
+            if BPUI._openPanel == el then BPUI._openPanel = nil end
             tw(caret, MOTION.standard, { Rotation = 90 })
             local t = tw(menu, MOTION.standard, { Size = UDim2.new(1, 0, 0, 0) })
             tween(hs, { Color = ACTIVE.StrokeSoft, Transparency = 0.4 }, MOTION.hover)
@@ -3444,12 +3675,17 @@ function Section:AddColorPicker(config)
 
     el._open = false
     local function setOpen(state)
+        if state and el._locked then return end
         el._open = state
         if state then
+            closeOpenPanel(el)
+            BPUI._openPanel = el
+            if el._window and el._window._hideTooltip then el._window:_hideTooltip() end
             panel.Visible = true
             tw(panel, MOTION.standard, { Size = UDim2.new(1, 0, 0, 160) })
             tween(sbs, { Color = ACTIVE.Accent, Transparency = 0.1 }, MOTION.hover)
         else
+            if BPUI._openPanel == el then BPUI._openPanel = nil end
             local t = tw(panel, MOTION.standard, { Size = UDim2.new(1, 0, 0, 0) })
             tween(sbs, { Color = ACTIVE.StrokeSoft, Transparency = 0.4 }, MOTION.hover)
             if t then t.Completed:Connect(function() if not el._open then panel.Visible = false end end)
@@ -3639,6 +3875,9 @@ Tab.AddSection = Tab.CreateSection
 function Window:Dialog(config)
     config = config or {}
     local theme = ACTIVE
+    if self._minimized then self:Minimize(false) end
+    closeOpenPanel(nil)
+    self:_hideTooltip()
 
     local overlay = new("Frame", {
         Name = "Dialog",
@@ -3652,20 +3891,19 @@ function Window:Dialog(config)
     })
     tw(overlay, MOTION.standard, { BackgroundTransparency = 0.45 })
 
-    local card = new("Frame", {
-        BackgroundColor3 = theme.Surface,
-        BorderSizePixel = 0,
+    local slot, card, syncConn = autoSlot(overlay, {
+        Name = "DialogSlot",
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 330, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
+        WidthScale = 0,
+        WidthOffset = 330,
+        Color = theme.Surface,
         ZIndex = 41,
-        Parent = overlay,
     })
     corner(card, RADIUS.lg)
     local cs = stroke(card, theme.Stroke, 1, 0.2)
     edgeLight(cs, theme)
-    dropShadow(card, 22, RADIUS.lg, 0.82, 40)
+    dropShadow(slot, 22, RADIUS.lg, 0.82, 41)
     sheen(card, 0.975, nil, 90)
 
     local sc = new("UIScale", { Scale = 0.94, Parent = card })
@@ -3675,7 +3913,7 @@ function Window:Dialog(config)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        ZIndex = 42,
+        ZIndex = 43,
         Parent = card,
     })
     pad(body, 18, 18, 16, 18)
@@ -3691,7 +3929,7 @@ function Window:Dialog(config)
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         LayoutOrder = 1,
-        ZIndex = 42,
+        ZIndex = 43,
         Parent = body,
     })
 
@@ -3706,7 +3944,7 @@ function Window:Dialog(config)
             Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             LayoutOrder = 2,
-            ZIndex = 42,
+            ZIndex = 43,
             Parent = body,
         })
     end
@@ -3715,7 +3953,7 @@ function Window:Dialog(config)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 34),
         LayoutOrder = 3,
-        ZIndex = 42,
+        ZIndex = 43,
         Parent = body,
     })
     local brl = list(buttonRow, 8, Enum.FillDirection.Horizontal)
@@ -3726,19 +3964,26 @@ function Window:Dialog(config)
     local function close()
         if closed then return end
         closed = true
+        pcall(function() syncConn:Disconnect() end)
         for _, h in ipairs(holders) do untrack(h) end
         holders = {}
         tw(sc, MOTION.quick, { Scale = 0.95 })
         local t = tw(overlay, MOTION.quick, { BackgroundTransparency = 1 })
-        for _, d in ipairs(card:GetDescendants()) do
+        for _, d in ipairs(slot:GetDescendants()) do
             if d:IsA("TextLabel") or d:IsA("TextButton") then tw(d, MOTION.quick, { TextTransparency = 1 })
             elseif d:IsA("Frame") then tw(d, MOTION.quick, { BackgroundTransparency = 1 })
             elseif d:IsA("ImageLabel") then tw(d, MOTION.quick, { ImageTransparency = 1 })
             elseif d:IsA("UIStroke") then tw(d, MOTION.quick, { Transparency = 1 }) end
         end
         tw(card, MOTION.quick, { BackgroundTransparency = 1 })
-        if t then t.Completed:Connect(function() overlay:Destroy() end)
-        else task.delay(0.3, function() overlay:Destroy() end) end
+        local done = false
+        local function finish()
+            if done then return end
+            done = true
+            pcall(function() overlay:Destroy() end)
+        end
+        if t then t.Completed:Connect(finish) end
+        task.delay(0.3, finish)
     end
 
     local buttons = config.Buttons or { { Text = "OK" } }
@@ -3758,7 +4003,7 @@ function Window:Dialog(config)
             Size = UDim2.new(0, math.max(74, #(spec.Text or "OK") * 8 + 26), 0, 32),
             LayoutOrder = i,
             ClipsDescendants = true,
-            ZIndex = 43,
+            ZIndex = 44,
             Parent = buttonRow,
         })
         corner(b, RADIUS.sm)
@@ -3771,7 +4016,7 @@ function Window:Dialog(config)
             TextSize = 12,
             TextColor3 = fg,
             Size = UDim2.new(1, 0, 1, 0),
-            ZIndex = 44,
+            ZIndex = 45,
             Parent = b,
         })
 
@@ -3828,22 +4073,20 @@ keyPrompt = function(window, config, title)
     })
     window._keyGui = sg
 
-    local card = new("Frame", {
+    local slot, card, syncConn = autoSlot(sg, {
         Name = "KeySystem",
-        BackgroundColor3 = theme.Window,
-        BorderSizePixel = 0,
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 360, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        Active = true,
-        ZIndex = 2,
-        Parent = sg,
+        WidthScale = 0,
+        WidthOffset = 360,
+        Color = theme.Window,
+        ZIndex = 1,
     })
+    card.Active = true
     corner(card, RADIUS.xl)
     local cs = stroke(card, theme.Stroke, 1, 0.15)
     edgeLight(cs, theme)
-    dropShadow(card, 24, RADIUS.xl, 0.82, 0)
+    dropShadow(slot, 24, RADIUS.xl, 0.82, 1)
     sheen(card, 0.975, nil, 90)
 
     local sc = new("UIScale", { Scale = 0.95, Parent = card })
@@ -3982,14 +4225,14 @@ keyPrompt = function(window, config, title)
         status.Text = message
         status.TextTransparency = 0
         tween(iws, { Color = ACTIVE.Danger, Transparency = 0 }, MOTION.hover)
-        local basePos = card.Position
+        local basePos = slot.Position
         for i = 1, 3 do
             task.delay((i - 1) * 0.06, function()
-                if not card.Parent then return end
-                card.Position = basePos + UDim2.new(0, (i % 2 == 0) and -6 or 6, 0, 0)
+                if not slot.Parent then return end
+                slot.Position = basePos + UDim2.new(0, (i % 2 == 0) and -6 or 6, 0, 0)
             end)
         end
-        task.delay(0.22, function() if card.Parent then card.Position = basePos end end)
+        task.delay(0.22, function() if slot.Parent then slot.Position = basePos end end)
     end
 
     local function submit()
@@ -4040,6 +4283,7 @@ keyPrompt = function(window, config, title)
     end
 
     for _, h in ipairs(holders) do untrack(h) end
+    pcall(function() syncConn:Disconnect() end)
     tw(sc, MOTION.quick, { Scale = 0.95 })
     task.delay(0.2, function() if sg then sg:Destroy() end end)
     window._keyGui = nil
@@ -4172,11 +4416,26 @@ function Window:Destroy()
     untrack(self)
 
     if self._keyGui then pcall(function() self._keyGui:Destroy() end) end
+    if self._blur then
+        local blur = self._blur
+        self._blur = nil
+        pcall(function()
+            local t = tw(blur, MOTION.quick, { Size = 0 })
+            task.delay(0.25, function() pcall(function() blur:Destroy() end) end)
+        end)
+    end
+    if BPUI._openPanel and BPUI._openPanel._window == self then BPUI._openPanel = nil end
 
     local gui = self._gui
     tw(self._scale, MOTION.quick, { Scale = self._fit * 0.94 })
     tw(self._main, MOTION.quick, { BackgroundTransparency = 1 })
-    if self._float then tw(self._float, MOTION.quick, { BackgroundTransparency = 1 }) end
+    if self._float then
+        for _, d in ipairs(self._float:GetDescendants()) do
+            if d:IsA("TextLabel") then tw(d, MOTION.quick, { TextTransparency = 1 })
+            elseif d:IsA("Frame") then tw(d, MOTION.quick, { BackgroundTransparency = 1 })
+            elseif d:IsA("UIStroke") then tw(d, MOTION.quick, { Transparency = 1 }) end
+        end
+    end
     for _, d in ipairs(self._root:GetDescendants()) do
         if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then tw(d, MOTION.quick, { TextTransparency = 1 })
         elseif d:IsA("Frame") then tw(d, MOTION.quick, { BackgroundTransparency = 1 })
@@ -4316,7 +4575,7 @@ buildSettingsTab = function(window, config)
         Callback = function()
             window._settings.Width, window._settings.Height = nil, nil
             window:_saveSettings()
-            window._root.Size = UDim2.new(0, IS_MOBILE and 540 or 720, 0, IS_MOBILE and 360 or 480)
+            window._root.Size = UDim2.new(0, IS_MOBILE and 560 or 840, 0, IS_MOBILE and 400 or 580)
         end,
     })
 

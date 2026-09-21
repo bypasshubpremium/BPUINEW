@@ -27,7 +27,7 @@ Near-black glass. Two soft coloured lights sit in the top corners — by default
 
 All of it is configurable from the built-in Settings tab: theme, accent, both glow colours, the watermark, and a tiled background image of your own. The user's choices persist.
 
-Tabs, groups and rows all take an `Icon`, and it can be an emoji — `Icon = "🎯"` — which Roblox renders in full colour, or an `rbxassetid` image, which is tinted to the theme.
+Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — drawn from frames in the theme's colour, so it is always monochrome, always tinted to match, and can never come back as a missing-glyph box. Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted) also work.
 
 Nothing is fetched to draw it. Every icon — the close cross, the chevrons, the checkmarks, the magnifier, the toast badges — is composed from rotated frames, and the shadows are stacked frames rather than an image. No asset can fail to load, and no glyph can come back as a missing-character box.
 
@@ -70,7 +70,8 @@ Detected automatically. The window starts smaller and scales down further on sma
 | --- | --- | --- | --- |
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
-| `Icon` | number/string | — | `rbxassetid` shown in the sidebar and the mobile bubble |
+| `Icon` | string/number | — | Named icon, emoji or `rbxassetid`; drawn bare next to the title and used as the page watermark |
+| `BrandBox` | bool | `false` | Put the brand icon inside an accent-coloured rounded square |
 | `Theme` | string/table | `"Void"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
 | `Size` | UDim2/Vector2 | 840×580 (560×400 mobile) | Auto-fitted to the screen |
@@ -123,6 +124,21 @@ local esp = combat:CreateTab({ Name = "ESP", Icon = "👁️" })
 ```
 
 Clicking the header folds the group with an animation and rotates its chevron. Selecting a tab inside a closed group opens it. Methods: `CreateTab(config)` · `Open()` · `Close()` · `Toggle()` · `SetOpen(bool)` · `IsOpen()` · `SetName(text)` · `Destroy()`. Search hides a group whose tabs have no matches.
+
+### Icons
+
+Eighty-odd named icons ship inside the library, all drawn from rotated frames, rings and rounded rectangles on a 24-unit grid in the Lucide style:
+
+```
+activity alert arrow-down arrow-left arrow-right arrow-up bell bolt book box bug chart
+check chevron-down chevron-right clock coins config cpu crosshair crown dice door egg
+esp eye filter flag folder fps gamepad gauge gear globe grid hammer heart home info
+keyboard layers list lock map minus money monitor mouse orbit paw percent pin plus power
+radar refresh repeat rocket save search send settings shield skull sliders sparkles star
+sun sword target timer tool tornado trash trending-up trophy user users wallet wrench x zap
+```
+
+Names are case-insensitive and may be prefixed `lucide:`. `BPUI.Icons` is the table, so you can add your own: `BPUI.Icons.myicon = function(d) d.ring(12, 12, 9) d.line(6, 12, 18, 12) end` using `d.line(x1,y1,x2,y2)`, `d.thick(x1,y1,x2,y2,width)`, `d.ring(cx,cy,r)`, `d.dot(cx,cy,r)`, `d.rect(x,y,w,h,radius)`, `d.fill(x,y,w,h,radius)` on that same 24-unit grid.
 
 ### `Tab:CreateSection(name)` → Section
 

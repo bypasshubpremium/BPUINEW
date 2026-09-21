@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.4.1",
+    Version = "2.5.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -435,7 +435,7 @@ local function dropShadow(parent, spread, radius, alpha, zindex)
     spread = spread or 18
     radius = radius or RADIUS.lg
     alpha = alpha or 0.82
-    local layers = 5
+    local layers = 14
     local holder = new("Frame", {
         Name = "Shadow",
         BackgroundTransparency = 1,
@@ -447,9 +447,10 @@ local function dropShadow(parent, spread, radius, alpha, zindex)
     for i = 1, layers do
         local f = (i - 1) / (layers - 1)
         local inset = spread * f
+        local eased = f * f * (3 - 2 * f)
         local layer = new("Frame", {
             BackgroundColor3 = Color3.new(0, 0, 0),
-            BackgroundTransparency = 0.985 + (alpha - 0.985) * f,
+            BackgroundTransparency = 0.992 + (alpha - 0.992) * eased,
             BorderSizePixel = 0,
             Position = UDim2.new(0, inset, 0, inset),
             Size = UDim2.new(1, -inset * 2, 1, -inset * 2),
@@ -546,7 +547,7 @@ local function orb(parent, color, size, centerOpacity, px, py, zindex)
         ZIndex = zindex or 1,
         Parent = parent,
     })
-    local layers = 8
+    local layers = 12
     local per = (1 - math.clamp(centerOpacity or 0.28, 0.02, 0.9)) ^ (1 / layers)
     for i = 1, layers do
         local f = (i - 1) / (layers - 1)
@@ -573,6 +574,239 @@ local function tintOrb(holder, color)
     end
 end
 
+local ICONS = {}
+
+local function rays(d, cx, cy, r1, r2, n)
+    for i = 0, n - 1 do
+        local a = i * (2 * math.pi / n)
+        d.line(cx + r1 * math.cos(a), cy + r1 * math.sin(a), cx + r2 * math.cos(a), cy + r2 * math.sin(a))
+    end
+end
+
+ICONS.home = function(d)
+    d.line(3.5, 11, 12, 3.5) d.line(12, 3.5, 20.5, 11)
+    d.rect(5.5, 10, 13, 10.5, 1.5)
+    d.fill(10, 14.5, 4, 6, 0.8)
+end
+ICONS.settings = function(d)
+    d.ring(12, 12, 3.2) d.ring(12, 12, 6.6)
+    rays(d, 12, 12, 6.6, 9.6, 8)
+end
+ICONS.sliders = function(d)
+    d.line(3, 6, 21, 6) d.line(3, 12, 21, 12) d.line(3, 18, 21, 18)
+    d.dot(15, 6, 2.1) d.dot(8, 12, 2.1) d.dot(17, 18, 2.1)
+end
+ICONS.eye = function(d) d.rect(2, 7, 20, 10, 5) d.dot(12, 12, 2.6) end
+ICONS.zap = function(d)
+    d.line(13, 2, 3, 14) d.line(3, 14, 12, 14) d.line(12, 14, 11, 22)
+    d.line(11, 22, 21, 10) d.line(21, 10, 12, 10) d.line(12, 10, 13, 2)
+end
+ICONS.bolt = ICONS.zap
+ICONS.target = function(d) d.ring(12, 12, 9) d.ring(12, 12, 5) d.dot(12, 12, 1.6) end
+ICONS.crosshair = function(d)
+    d.ring(12, 12, 8) d.line(12, 2, 12, 6) d.line(12, 18, 12, 22)
+    d.line(2, 12, 6, 12) d.line(18, 12, 22, 12) d.dot(12, 12, 1.5)
+end
+ICONS.shield = function(d) d.rect(5, 3, 14, 18, 5) d.line(8.5, 12, 11, 14.5) d.line(11, 14.5, 15.5, 9.5) end
+ICONS.user = function(d) d.ring(12, 8, 4) d.rect(4.5, 14.5, 15, 9, 4.5) end
+ICONS.users = function(d) d.ring(9, 8, 3.5) d.ring(16.5, 8.5, 3) d.rect(2.5, 14.5, 13, 8, 4) d.rect(13.5, 15, 8, 7, 3.5) end
+ICONS.box = function(d) d.rect(3, 3, 18, 18, 3) d.line(3, 9, 21, 9) d.line(12, 9, 12, 21) end
+ICONS.search = function(d) d.ring(10.5, 10.5, 6.5) d.line(15.5, 15.5, 20.5, 20.5) end
+ICONS.grid = function(d)
+    d.rect(3, 3, 7.5, 7.5, 1.5) d.rect(13.5, 3, 7.5, 7.5, 1.5)
+    d.rect(3, 13.5, 7.5, 7.5, 1.5) d.rect(13.5, 13.5, 7.5, 7.5, 1.5)
+end
+ICONS.list = function(d)
+    d.line(8, 6, 21, 6) d.line(8, 12, 21, 12) d.line(8, 18, 21, 18)
+    d.dot(4, 6, 1.3) d.dot(4, 12, 1.3) d.dot(4, 18, 1.3)
+end
+ICONS.plus = function(d) d.line(12, 4, 12, 20) d.line(4, 12, 20, 12) end
+ICONS.minus = function(d) d.line(4, 12, 20, 12) end
+ICONS.check = function(d) d.line(4.5, 12.5, 9.5, 17.5) d.line(9.5, 17.5, 19.5, 7) end
+ICONS.x = function(d) d.line(5, 5, 19, 19) d.line(19, 5, 5, 19) end
+ICONS["arrow-right"] = function(d) d.line(4, 12, 19, 12) d.line(13, 6, 19, 12) d.line(13, 18, 19, 12) end
+ICONS["arrow-left"] = function(d) d.line(20, 12, 5, 12) d.line(11, 6, 5, 12) d.line(11, 18, 5, 12) end
+ICONS["arrow-up"] = function(d) d.line(12, 20, 12, 5) d.line(6, 11, 12, 5) d.line(18, 11, 12, 5) end
+ICONS["arrow-down"] = function(d) d.line(12, 4, 12, 19) d.line(6, 13, 12, 19) d.line(18, 13, 12, 19) end
+ICONS["chevron-right"] = function(d) d.line(9, 5, 16, 12) d.line(16, 12, 9, 19) end
+ICONS["chevron-down"] = function(d) d.line(5, 9, 12, 16) d.line(12, 16, 19, 9) end
+ICONS.folder = function(d) d.rect(2.5, 6, 19, 14, 2.5) d.fill(2.5, 4, 8, 4, 1.5) end
+ICONS.save = function(d) d.rect(3, 3, 18, 18, 3) d.fill(8, 3, 8, 5, 1) d.rect(7, 14, 10, 7, 1) end
+ICONS.globe = function(d) d.ring(12, 12, 9) d.line(3, 12, 21, 12) d.rect(8, 3, 8, 18, 4) end
+ICONS.lock = function(d) d.ring(12, 8, 4.5) d.rect(4.5, 10.5, 15, 11, 2.5) d.dot(12, 16, 1.3) end
+ICONS.trash = function(d)
+    d.rect(5.5, 7, 13, 14.5, 2) d.line(3, 6.5, 21, 6.5) d.line(9.5, 3.5, 14.5, 3.5)
+    d.line(10, 11, 10, 17) d.line(14, 11, 14, 17)
+end
+ICONS.bell = function(d) d.rect(6, 3, 12, 14, 6) d.line(3.5, 17.5, 20.5, 17.5) d.dot(12, 20.5, 1.8) end
+ICONS.flag = function(d) d.line(5, 3, 5, 21) d.rect(5, 3.5, 14, 10, 1.5) end
+ICONS.refresh = function(d) d.ring(12, 12, 8) d.line(20, 4, 20, 9.5) d.line(20, 9.5, 14.5, 9.5) end
+ICONS.egg = function(d) d.rect(5.5, 2.5, 13, 19, 6.5) end
+ICONS.cpu = function(d)
+    d.rect(5, 5, 14, 14, 2) d.rect(9, 9, 6, 6, 1)
+    d.line(2, 9, 5, 9) d.line(2, 15, 5, 15) d.line(19, 9, 22, 9) d.line(19, 15, 22, 15)
+    d.line(9, 2, 9, 5) d.line(15, 2, 15, 5) d.line(9, 19, 9, 22) d.line(15, 19, 15, 22)
+end
+ICONS.monitor = function(d) d.rect(2.5, 4, 19, 13, 2) d.line(12, 17, 12, 21) d.line(7.5, 21, 16.5, 21) end
+ICONS.gamepad = function(d)
+    d.rect(2, 7, 20, 10, 5) d.line(6.5, 12, 10.5, 12) d.line(8.5, 10, 8.5, 14)
+    d.dot(15.5, 10.8, 1.3) d.dot(17.5, 13.2, 1.3)
+end
+ICONS.coins = function(d) d.ring(9, 10, 6) d.ring(15, 14, 6) end
+ICONS.layers = function(d) d.rect(4, 3, 16, 5, 1.5) d.rect(4, 9.5, 16, 5, 1.5) d.rect(4, 16, 16, 5, 1.5) end
+ICONS.radar = function(d) d.dot(12, 12, 2) d.ring(12, 12, 6) d.ring(12, 12, 10) end
+ICONS.activity = function(d) d.line(3, 12, 7, 12) d.line(7, 12, 10, 5) d.line(10, 5, 14, 19) d.line(14, 19, 17, 12) d.line(17, 12, 21, 12) end
+ICONS.clock = function(d) d.ring(12, 12, 9) d.line(12, 7, 12, 12.5) d.line(12, 12.5, 15.5, 14.5) end
+ICONS.pin = function(d) d.ring(12, 9.5, 7.5) d.line(6.5, 13.5, 12, 21.5) d.line(17.5, 13.5, 12, 21.5) d.dot(12, 9.5, 2.4) end
+ICONS.chart = function(d) d.line(6, 20, 6, 12) d.line(12, 20, 12, 5) d.line(18, 20, 18, 9) d.line(3, 21, 21, 21) end
+ICONS.power = function(d) d.ring(12, 13, 8) d.line(12, 3, 12, 12) end
+ICONS.sparkles = function(d) d.line(12, 3, 12, 21) d.line(3, 12, 21, 12) d.line(7, 7, 17, 17) d.line(17, 7, 7, 17) d.dot(12, 12, 2.2) end
+ICONS.sword = function(d) d.line(5.5, 18.5, 19.5, 4.5) d.line(11, 9.5, 14.5, 13) d.line(3.5, 20.5, 6.5, 17.5) end
+ICONS.crown = function(d)
+    d.line(3, 18, 5, 7) d.line(5, 7, 9.5, 12) d.line(9.5, 12, 12, 5) d.line(12, 5, 14.5, 12)
+    d.line(14.5, 12, 19, 7) d.line(19, 7, 21, 18) d.line(3, 18, 21, 18)
+end
+ICONS.paw = function(d) d.dot(6, 7.5, 2.1) d.dot(10, 4.5, 2.1) d.dot(14, 4.5, 2.1) d.dot(18, 7.5, 2.1) d.fill(7, 11, 10, 9.5, 5) end
+ICONS.hammer = function(d) d.line(4, 20, 12.5, 11.5) d.thick(11, 6, 18, 13, 5.5) end
+ICONS.dice = function(d) d.rect(3, 3, 18, 18, 3.5) d.dot(8, 8, 1.5) d.dot(16, 8, 1.5) d.dot(12, 12, 1.5) d.dot(8, 16, 1.5) d.dot(16, 16, 1.5) end
+ICONS.trophy = function(d) d.rect(7, 3, 10, 11, 4) d.line(12, 14, 12, 18) d.line(8, 20.5, 16, 20.5) d.line(4, 5, 4, 9.5) d.line(20, 5, 20, 9.5) end
+ICONS.info = function(d) d.ring(12, 12, 9) d.dot(12, 8, 1.3) d.line(12, 11, 12, 16.5) end
+ICONS.alert = function(d) d.ring(12, 12, 9) d.line(12, 7.5, 12, 13) d.dot(12, 16.5, 1.3) end
+ICONS.keyboard = function(d) d.rect(2, 6, 20, 12, 2.5) d.dot(6, 10, 1) d.dot(9.5, 10, 1) d.dot(13, 10, 1) d.dot(16.5, 10, 1) d.line(7, 14.5, 17, 14.5) end
+ICONS.mouse = function(d) d.rect(6.5, 2.5, 11, 19, 5.5) d.line(12, 6, 12, 10) end
+ICONS.percent = function(d) d.line(5, 19, 19, 5) d.ring(7, 7, 2.5) d.ring(17, 17, 2.5) end
+ICONS.wallet = function(d) d.rect(2.5, 5.5, 19, 13.5, 2.5) d.fill(14.5, 10.5, 7, 4.5, 1.2) end
+ICONS.sun = function(d) d.dot(12, 12, 3.6) rays(d, 12, 12, 6.8, 9.6, 8) end
+ICONS.filter = function(d) d.line(3, 5, 21, 5) d.line(6, 11, 18, 11) d.line(9.5, 17, 14.5, 17) end
+ICONS.book = function(d) d.rect(4, 3, 16, 18, 2) d.line(8.5, 3, 8.5, 21) end
+ICONS.send = function(d) d.line(21, 3, 3, 10.5) d.line(3, 10.5, 11, 13.5) d.line(11, 13.5, 21, 3) d.line(11, 13.5, 14, 21) d.line(14, 21, 21, 3) end
+ICONS.gauge = function(d) d.ring(12, 13, 9) d.line(12, 13, 16.5, 8.5) d.dot(12, 13, 1.6) end
+ICONS.orbit = function(d) d.ring(12, 12, 3) d.ring(12, 12, 9) d.dot(19.5, 6.5, 1.9) end
+ICONS.tornado = function(d) d.line(3, 5, 21, 5) d.line(5, 10, 19, 10) d.line(8, 15, 16, 15) d.line(10.5, 20, 13.5, 20) end
+ICONS["repeat"] = function(d) d.line(4, 8, 18, 8) d.line(15, 5, 18, 8) d.line(15, 11, 18, 8) d.line(20, 16, 6, 16) d.line(9, 13, 6, 16) d.line(9, 19, 6, 16) end
+ICONS.skull = function(d) d.ring(12, 10, 8) d.dot(9, 9.5, 1.8) d.dot(15, 9.5, 1.8) d.line(9, 18, 9, 21) d.line(12, 18, 12, 21) d.line(15, 18, 15, 21) end
+ICONS["trending-up"] = function(d) d.line(3, 17, 9, 11) d.line(9, 11, 13, 15) d.line(13, 15, 21, 7) d.line(16, 7, 21, 7) d.line(21, 7, 21, 12) end
+ICONS.door = function(d) d.rect(5, 3, 14, 18, 1.5) d.dot(15.5, 12, 1.3) end
+ICONS.star = function(d)
+    for i = 0, 4 do
+        local a1 = -math.pi / 2 + i * 2 * math.pi / 5
+        local a2 = -math.pi / 2 + (i + 2) * 2 * math.pi / 5
+        d.line(12 + 9 * math.cos(a1), 12 + 9 * math.sin(a1), 12 + 9 * math.cos(a2), 12 + 9 * math.sin(a2))
+    end
+end
+ICONS.heart = function(d) d.ring(8, 9, 4.2) d.ring(16, 9, 4.2) d.line(4.2, 11.5, 12, 20) d.line(19.8, 11.5, 12, 20) end
+ICONS.wrench = ICONS.hammer
+ICONS.tool = ICONS.hammer
+ICONS.bug = function(d) d.rect(7, 8, 10, 13, 5) d.line(9.5, 8, 8, 4.5) d.line(14.5, 8, 16, 4.5) d.line(7, 12, 3, 11) d.line(17, 12, 21, 11) d.line(7, 17, 3.5, 19) d.line(17, 17, 20.5, 19) d.line(12, 8, 12, 21) end
+ICONS.rocket = function(d) d.line(12, 2.5, 6.5, 14) d.line(12, 2.5, 17.5, 14) d.line(6.5, 14, 17.5, 14) d.line(9, 14, 8, 20) d.line(15, 14, 16, 20) d.dot(12, 9, 1.8) end
+ICONS.map = function(d) d.rect(3, 4, 18, 16, 2) d.line(9, 4, 9, 20) d.line(15, 4, 15, 20) end
+ICONS.timer = ICONS.clock
+ICONS.fps = ICONS.gauge
+ICONS.esp = ICONS.radar
+ICONS.money = ICONS.coins
+ICONS.config = ICONS.save
+ICONS.gear = ICONS.settings
+
+
+BPUI.Icons = ICONS
+
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+
+local function drawIcon(parent, name, size, color, zindex, alpha)
+    local def = ICONS[name]
+    if not def then return nil end
+    alpha = alpha or 0
+    zindex = zindex or 5
+    local k = size / 24
+    local t = math.max(1, 2 * k)
+    local holder = new("Frame", {
+        Name = "Icon",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, size, 0, size),
+        ZIndex = zindex,
+        Parent = parent,
+    })
+    local d = {}
+    local function seg(x1, y1, x2, y2, w)
+        local dx, dy = (x2 - x1) * k, (y2 - y1) * k
+        local len = math.sqrt(dx * dx + dy * dy)
+        local f = new("Frame", {
+            Name = "Fill",
+            BackgroundColor3 = color,
+            BackgroundTransparency = alpha,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0, (x1 + x2) * 0.5 * k, 0, (y1 + y2) * 0.5 * k),
+            Size = UDim2.new(0, len + w, 0, w),
+            Rotation = math.deg(atan2(dy, dx)),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, RADIUS.pill)
+    end
+    function d.line(x1, y1, x2, y2) seg(x1, y1, x2, y2, t) end
+    function d.thick(x1, y1, x2, y2, w) seg(x1, y1, x2, y2, w * k) end
+    function d.dot(cx, cy, r)
+        local f = new("Frame", {
+            Name = "Fill",
+            BackgroundColor3 = color,
+            BackgroundTransparency = alpha,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0, cx * k, 0, cy * k),
+            Size = UDim2.new(0, r * 2 * k, 0, r * 2 * k),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, RADIUS.pill)
+    end
+    function d.ring(cx, cy, r)
+        local inner = math.max(0, r * k - t / 2)
+        local f = new("Frame", {
+            Name = "Stroke",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0, cx * k, 0, cy * k),
+            Size = UDim2.new(0, inner * 2, 0, inner * 2),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, RADIUS.pill)
+        stroke(f, color, t, alpha)
+    end
+    function d.rect(x, y, w, h, rad)
+        local f = new("Frame", {
+            Name = "Stroke",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, x * k + t / 2, 0, y * k + t / 2),
+            Size = UDim2.new(0, math.max(0, w * k - t), 0, math.max(0, h * k - t)),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, math.max(0, rad * k - t / 2))
+        stroke(f, color, t, alpha)
+    end
+    function d.fill(x, y, w, h, rad)
+        local f = new("Frame", {
+            Name = "Fill",
+            BackgroundColor3 = color,
+            BackgroundTransparency = alpha,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, x * k, 0, y * k),
+            Size = UDim2.new(0, w * k, 0, h * k),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, rad * k)
+    end
+    def(d)
+    return holder
+end
+
 local function isAssetIcon(v)
     if type(v) == "number" then return true end
     if type(v) ~= "string" then return false end
@@ -582,6 +816,12 @@ end
 
 local function iconAny(parent, icon, size, color, zindex)
     if icon == nil or icon == "" then return nil, nil end
+    if type(icon) == "string" then
+        local key = icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")
+        if ICONS[key] then
+            return drawIcon(parent, key, size, color, zindex), "draw"
+        end
+    end
     if isAssetIcon(icon) then
         local img = tostring(icon)
         if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
@@ -673,9 +913,10 @@ end
 
 local function tintIcon(holder, color)
     if not holder then return end
+    if holder:IsA("ImageLabel") then holder.ImageColor3 = color return end
     for _, c in ipairs(holder:GetChildren()) do
         if c:IsA("Frame") then
-            c.BackgroundColor3 = color
+            if c.Name ~= "Stroke" then c.BackgroundColor3 = color end
             local s = c:FindFirstChildOfClass("UIStroke")
             if s then s.Color = color end
         elseif c:IsA("UIStroke") then
@@ -735,7 +976,12 @@ local function fadeIcon(holder, transparency, info)
     if not holder then return end
     for _, c in ipairs(holder:GetChildren()) do
         if c:IsA("Frame") then
-            tw(c, info or MOTION.quick, { BackgroundTransparency = transparency })
+            if c.Name == "Stroke" then
+                local s = c:FindFirstChildOfClass("UIStroke")
+                if s then tw(s, info or MOTION.quick, { Transparency = transparency }) end
+            else
+                tw(c, info or MOTION.quick, { BackgroundTransparency = transparency })
+            end
         end
     end
 end
@@ -765,8 +1011,26 @@ local function bind(owner, inst, prop, key)
     if ACTIVE[key] then inst[prop] = ACTIVE[key] end
 end
 
+local function bindIcon(owner, holder, key)
+    if not owner or not holder then return end
+    owner._iconBinds = owner._iconBinds or {}
+    table.insert(owner._iconBinds, { holder = holder, key = key })
+    if ACTIVE[key] then tintIcon(holder, ACTIVE[key]) end
+end
+
 local function applyBindings(owner, theme)
-    if not owner or not owner._bindings then return end
+    if not owner then return end
+    if owner._iconBinds then
+        for i = #owner._iconBinds, 1, -1 do
+            local b = owner._iconBinds[i]
+            if b.holder and b.holder.Parent then
+                if theme[b.key] then pcall(tintIcon, b.holder, theme[b.key]) end
+            else
+                table.remove(owner._iconBinds, i)
+            end
+        end
+    end
+    if not owner._bindings then return end
     for i = #owner._bindings, 1, -1 do
         local b = owner._bindings[i]
         if b.inst and b.inst.Parent then
@@ -1421,31 +1685,49 @@ function BPUI:CreateWindow(config)
     })
     pad(brand, 0, 14, 0, 14)
 
-    local markSize = 32
-    local mark = new("Frame", {
-        Name = "Mark",
-        BackgroundColor3 = theme.Accent,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.new(0, markSize, 0, markSize),
-        ZIndex = 4,
-        Parent = brand,
-    })
-    corner(mark, RADIUS.md)
-    bind(self, mark, "BackgroundColor3", "Accent")
-    sheen(mark, 0.78, nil, 135)
-    local markGlow = accentGlow(mark, theme.Accent, 10, 0.80, 3)
-    for _, l in ipairs(markGlow:GetChildren()) do bind(self, l, "BackgroundColor3", "Accent") end
-    local markStroke = stroke(mark, Color3.new(1, 1, 1), 1, 0.78)
+    local markSize = 0
+    local useBox = config.BrandBox == true
+    local mark
+    if useBox then
+        markSize = 32
+        mark = new("Frame", {
+            Name = "Mark",
+            BackgroundColor3 = theme.Accent,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            Size = UDim2.new(0, markSize, 0, markSize),
+            ZIndex = 4,
+            Parent = brand,
+        })
+        corner(mark, RADIUS.md)
+        bind(self, mark, "BackgroundColor3", "Accent")
+        sheen(mark, 0.78, nil, 135)
+        local markGlow = accentGlow(mark, theme.Accent, 10, 0.80, 3)
+        for _, l in ipairs(markGlow:GetChildren()) do bind(self, l, "BackgroundColor3", "Accent") end
+        stroke(mark, Color3.new(1, 1, 1), 1, 0.78)
+    elseif config.Icon then
+        markSize = 26
+        mark = new("Frame", {
+            Name = "Mark",
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            Size = UDim2.new(0, markSize, 0, markSize),
+            ZIndex = 4,
+            Parent = brand,
+        })
+    end
 
-    if config.Icon then
-        local ico, kind = iconAny(mark, config.Icon, 18, theme.AccentText, 5)
+    if config.Icon and mark then
+        local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5)
         if kind == "image" then
-            ico.Size = UDim2.new(1, -10, 1, -10)
-            bind(self, ico, "ImageColor3", "AccentText")
+            ico.Size = UDim2.new(1, useBox and -10 or -2, 1, useBox and -10 or -2)
+            bind(self, ico, "ImageColor3", useBox and "AccentText" or "Text")
+        elseif kind == "draw" then
+            bindIcon(self, ico, useBox and "AccentText" or "Text")
         end
-    else
+    elseif useBox then
         local initials = title:sub(1, 1):upper()
         local second = title:match("%s(%a)")
         if second then initials = initials .. second:upper() end
@@ -1463,8 +1745,8 @@ function BPUI:CreateWindow(config)
 
     local brandText = new("Frame", {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, markSize + 10, 0, 0),
-        Size = UDim2.new(1, -(markSize + 10), 1, 0),
+        Position = UDim2.new(0, markSize > 0 and markSize + 10 or 0, 0, 0),
+        Size = UDim2.new(1, -(markSize > 0 and markSize + 10 or 0), 1, 0),
         ZIndex = 4,
         Parent = brand,
     })
@@ -2047,7 +2329,10 @@ function Window:_buildBackground()
         })
         local icon = self._brandIcon
         local alpha = bg.WatermarkAlpha or 0.955
-        if icon and isAssetIcon(icon) then
+        local named = type(icon) == "string" and ICONS[icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")]
+        if named then
+            drawIcon(wm, icon:lower():gsub("^lucide:", ""):gsub("^icon:", ""), 380, theme.Text, 1, alpha)
+        elseif icon and isAssetIcon(icon) then
             local img = tostring(icon)
             if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
             new("ImageLabel", {
@@ -2131,7 +2416,8 @@ function Window:_retintBackground()
         if wm then
             for _, d in ipairs(wm:GetChildren()) do
                 if d:IsA("TextLabel") then d.TextColor3 = ACTIVE.Text
-                elseif d:IsA("ImageLabel") then d.ImageColor3 = ACTIVE.Text end
+                elseif d:IsA("ImageLabel") then d.ImageColor3 = ACTIVE.Text
+                elseif d:IsA("Frame") and d.Name == "Icon" then tintIcon(d, ACTIVE.Text) end
             end
         end
         local tex = self._backdrop:FindFirstChild("Texture")
@@ -2248,6 +2534,7 @@ local function buildTab(w, container, config, group)
     local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText)
     if ico then
         tab._icon, tab._iconKind = ico, kind
+        if kind == "draw" then bindIcon(tab, ico, "SubText") end
         labelX = labelX + w_
     end
 
@@ -2331,13 +2618,15 @@ local function buildTab(w, container, config, group)
             if w._activeTab == tab then return end
             tween(button, { BackgroundTransparency = 0.5, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.Text }, MOTION.hover)
-            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover) end
+            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover)
+            elseif tab._iconKind == "draw" then tintIcon(tab._icon, ACTIVE.Text) end
         end))
         track(tab, button.MouseLeave:Connect(function()
             if w._activeTab == tab then return end
             tween(button, { BackgroundTransparency = 1 }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.SubText }, MOTION.hover)
-            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover) end
+            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover)
+            elseif tab._iconKind == "draw" then tintIcon(tab._icon, ACTIVE.SubText) end
         end))
     end
 
@@ -2390,6 +2679,7 @@ function Window:CreateGroup(config)
     local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText)
     if ico then
         group._icon, group._iconKind = ico, kind
+        if kind == "draw" then bindIcon(group, ico, "SubText") end
         labelX = labelX + w_
     end
 
@@ -2554,6 +2844,8 @@ function Tab:Select(instant)
         tw(t._bar, instant and TweenInfo.new(0) or MOTION.release, { Size = UDim2.new(0, 3, 0, on and 18 or 0) })
         if t._iconKind == "image" then
             tw(t._icon, info, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText })
+        elseif t._iconKind == "draw" then
+            tintIcon(t._icon, on and ACTIVE.Accent or ACTIVE.SubText)
         end
     end
 
@@ -2596,7 +2888,10 @@ function Tab:SetIcon(icon)
     self._icon, self._iconKind = nil, nil
     local inset = self._group and 12 or 0
     local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText)
-    if ico then self._icon, self._iconKind = ico, kind end
+    if ico then
+        self._icon, self._iconKind = ico, kind
+        if kind == "draw" then bindIcon(self, ico, "SubText") end
+    end
     local labelX = 12 + inset + (ico and w_ or 0)
     self._label.Position = UDim2.new(0, labelX, 0, 0)
     self._label.Size = UDim2.new(1, -(labelX + 10), 1, 0)
@@ -2929,7 +3224,8 @@ local function baseRow(section, config, opts)
             Parent = inner,
         })
         local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5)
-        if kind == "image" then bind(el, ico, "ImageColor3", "SubText") end
+        if kind == "image" then bind(el, ico, "ImageColor3", "SubText")
+        elseif kind == "draw" then bindIcon(el, ico, "SubText") end
         el._icon, el._iconKind, el._iconBox = ico, kind, box
     end
     pad(inner, 12, 16, 12, 16 + iconInset)
@@ -3067,7 +3363,8 @@ function Element:SetIcon(icon)
     if not self._iconBox then return end
     if self._icon then self._icon:Destroy() end
     local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5)
-    if kind == "image" then bind(self, ico, "ImageColor3", "SubText") end
+    if kind == "image" then bind(self, ico, "ImageColor3", "SubText")
+    elseif kind == "draw" then bindIcon(self, ico, "SubText") end
     self._icon, self._iconKind = ico, kind
 end
 
@@ -5232,7 +5529,7 @@ buildSettingsTab = function(window, config)
     local tab = window:CreateTab({
         Name = config.SettingsName or "Settings",
         Subtitle = "Interface, themes and saved configurations",
-        Icon = config.SettingsIcon,
+        Icon = config.SettingsIcon or "sliders",
     })
 
     local appearance = tab:CreateSection("Appearance")

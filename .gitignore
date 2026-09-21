@@ -6,5 +6,6 @@ Hub.lua
 Example.lua
 PROMPT.md
 DEPLOY.md
+stealanegg*.lua
 *.log
 *.tmp

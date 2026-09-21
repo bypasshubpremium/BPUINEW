@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.4.0",
+    Version = "2.4.1",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -3843,9 +3843,12 @@ function Section:AddDropdown(config)
             end
             self.Value = t
         else
+            if type(value) == "table" then value = value[1] end
             local found
-            for _, o in ipairs(self._options) do
-                if o == tostring(value) then found = o break end
+            if value ~= nil then
+                for _, o in ipairs(self._options) do
+                    if o == tostring(value) then found = o break end
+                end
             end
             self.Value = found
         end
@@ -5140,6 +5143,9 @@ function Window:Destroy()
     if self._onDestroy then task.spawn(self._onDestroy) end
 end
 
+Window.Unload = Window.Destroy
+Window.Close = Window.Destroy
+
 function BPUI:SetTheme(theme)
     local resolved = resolveTheme(theme)
     ACTIVE = resolved
@@ -5333,6 +5339,8 @@ buildSettingsTab = function(window, config)
             window._root.Size = UDim2.new(0, IS_MOBILE and 560 or 840, 0, IS_MOBILE and 400 or 580)
         end,
     })
+
+    if config.ShowConfig == false then return tab end
 
     local configs = tab:CreateSection("Configuration")
 

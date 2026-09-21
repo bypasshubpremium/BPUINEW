@@ -89,6 +89,8 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `AcrylicStrength` | number | `14` | Blur radius when `Acrylic` is on |
 | `ConfigFolder` | string | Title | Files live in `BPUI/<ConfigFolder>/` |
 | `ShowSettings` | bool | `true` | Built-in Settings tab |
+| `ShowConfig` | bool | `true` | The Save / Load / Delete section inside Settings. Turn it off when your script has its own config system |
+| `SettingsIcon` | emoji/id | — | Icon for the Settings tab |
 | `SettingsName` | string | `"Settings"` | Rename that tab |
 | `CloseBehavior` | string | `"Destroy"` | `"Hide"` makes the X hide instead |
 | `ConfirmClose` | bool | `false` | Ask before unloading |
@@ -102,7 +104,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 **Methods**
 
-`CreateTab(config)` · `SelectTab(tabOrName)` · `Show()` · `Hide()` · `Toggle()` · `SetVisible(bool)` · `Minimize(state?)` · `Search(text)` · `Dialog(config)` · `SetTitle(text)` · `SetSubtitle(text)` · `SetToggleKey(key)` · `SetFloatingButtonVisible(bool)` · `Notify(config)` · `SaveConfig(name)` · `LoadConfig(name)` · `GetConfigs()` · `DeleteConfig(name)` · `SetAutoLoad(name|nil)` · `GetAutoLoad()` · `LoadAutoConfig()` · `Destroy()`
+`CreateTab(config)` · `CreateGroup(config)` · `SelectTab(tabOrName)` · `Show()` · `Hide()` · `Toggle()` · `SetVisible(bool)` · `Minimize(state?)` · `Search(text)` · `Dialog(config)` · `SetTitle(text)` · `SetSubtitle(text)` · `SetToggleKey(key)` · `SetFloatingButtonVisible(bool)` · `Notify(config)` · `SaveConfig(name)` · `LoadConfig(name)` · `GetConfigs()` · `DeleteConfig(name)` · `SetAutoLoad(name|nil)` · `GetAutoLoad()` · `LoadAutoConfig()` · `SetBackground(table)` · `Destroy()` (alias `Unload()`)
 
 ### `Window:CreateTab(config)` → Tab
 
@@ -145,7 +147,7 @@ Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` �
 | `AddParagraph` | `Title` `Content` | — | string |
 | `AddDivider` | height | — | — |
 
-Extras: `Dropdown:Refresh(options, keepValue)` · `Dropdown:Open()/Close()` · `Slider:SetRange(min, max)` · `Keybind:GetKeyCode()` · `ColorPicker:Open()/Close()` · `Paragraph:SetTitle()/SetContent()` · `Button:Click()`.
+Extras: `Dropdown:Refresh(options, keepValue)` · `Dropdown:Open()/Close()` (a single-select dropdown's `Set` also accepts `{ "value" }` or `{}`, so scripts written for Rayfield gen2 / Luna port without changes) · `Slider:SetRange(min, max)` · `Keybind:GetKeyCode()` · `ColorPicker:Open()/Close()` · `Paragraph:SetTitle()/SetContent()` · `Button:Click()`.
 
 Notes worth knowing: sliders can be dragged anywhere in a 24px band around the rail, or tapped on the value to type an exact number; dropdowns past six options grow a filter box on their own, only one dropdown or colour panel is ever open at a time, and clicking anywhere else closes it; keybinds take keyboard keys plus the right and middle mouse buttons, Backspace clears and Escape cancels; locked elements dim, stop accepting input and stop accepting typed text, while `Set` still works from code.
 

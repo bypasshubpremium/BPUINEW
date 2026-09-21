@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.5.0",
+    Version = "2.6.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -576,130 +576,326 @@ end
 
 local ICONS = {}
 
-local function rays(d, cx, cy, r1, r2, n)
+local function rays(d, cx, cy, r1, r2, n, role, w)
     for i = 0, n - 1 do
         local a = i * (2 * math.pi / n)
-        d.line(cx + r1 * math.cos(a), cy + r1 * math.sin(a), cx + r2 * math.cos(a), cy + r2 * math.sin(a))
+        d.thick(cx + r1 * math.cos(a), cy + r1 * math.sin(a), cx + r2 * math.cos(a), cy + r2 * math.sin(a), w or 2, role)
     end
 end
 
 ICONS.home = function(d)
-    d.line(3.5, 11, 12, 3.5) d.line(12, 3.5, 20.5, 11)
-    d.rect(5.5, 10, 13, 10.5, 1.5)
-    d.fill(10, 14.5, 4, 6, 0.8)
+    d.thick(3, 11.5, 12, 3.8, 3.6) d.thick(12, 3.8, 21, 11.5, 3.6)
+    d.fill(5, 10.5, 14, 10.5, 2.2)
+    d.fill(9.7, 14.4, 4.6, 6.6, 1.3, "dim")
 end
 ICONS.settings = function(d)
-    d.ring(12, 12, 3.2) d.ring(12, 12, 6.6)
-    rays(d, 12, 12, 6.6, 9.6, 8)
+    d.band(12, 12, 7.6, 3.4)
+    for i = 0, 7 do
+        local a = i * (math.pi / 4)
+        d.dot(12 + 9.1 * math.cos(a), 12 + 9.1 * math.sin(a), 1.55)
+    end
+    d.dot(12, 12, 2.4, "accent")
 end
 ICONS.sliders = function(d)
-    d.line(3, 6, 21, 6) d.line(3, 12, 21, 12) d.line(3, 18, 21, 18)
-    d.dot(15, 6, 2.1) d.dot(8, 12, 2.1) d.dot(17, 18, 2.1)
+    d.thick(3, 6, 21, 6, 2.2) d.thick(3, 12, 21, 12, 2.2) d.thick(3, 18, 21, 18, 2.2)
+    d.dot(15, 6, 2.3, "accent") d.dot(8, 12, 2.3, "accent") d.dot(17, 18, 2.3, "accent")
 end
-ICONS.eye = function(d) d.rect(2, 7, 20, 10, 5) d.dot(12, 12, 2.6) end
+ICONS.eye = function(d)
+    d.fill(2, 7.2, 20, 9.6, 4.8)
+    d.dot(12, 12, 3.4, "dim")
+end
 ICONS.zap = function(d)
-    d.line(13, 2, 3, 14) d.line(3, 14, 12, 14) d.line(12, 14, 11, 22)
-    d.line(11, 22, 21, 10) d.line(21, 10, 12, 10) d.line(12, 10, 13, 2)
+    d.thick(13, 2, 4, 13, 4.4)
+    d.thick(4, 13, 12, 13, 4.4)
+    d.thick(12, 13, 10.5, 22, 4.4, "accent")
+    d.thick(10.5, 22, 20, 11, 4.4, "accent")
+    d.thick(20, 11, 12, 11, 4.4)
+    d.thick(12, 11, 13, 2, 4.4)
 end
 ICONS.bolt = ICONS.zap
-ICONS.target = function(d) d.ring(12, 12, 9) d.ring(12, 12, 5) d.dot(12, 12, 1.6) end
-ICONS.crosshair = function(d)
-    d.ring(12, 12, 8) d.line(12, 2, 12, 6) d.line(12, 18, 12, 22)
-    d.line(2, 12, 6, 12) d.line(18, 12, 22, 12) d.dot(12, 12, 1.5)
+ICONS.target = function(d)
+    d.band(12, 12, 9, 2.6)
+    d.band(12, 12, 5.2, 2.6, "dim")
+    d.dot(12, 12, 1.8, "accent")
 end
-ICONS.shield = function(d) d.rect(5, 3, 14, 18, 5) d.line(8.5, 12, 11, 14.5) d.line(11, 14.5, 15.5, 9.5) end
-ICONS.user = function(d) d.ring(12, 8, 4) d.rect(4.5, 14.5, 15, 9, 4.5) end
-ICONS.users = function(d) d.ring(9, 8, 3.5) d.ring(16.5, 8.5, 3) d.rect(2.5, 14.5, 13, 8, 4) d.rect(13.5, 15, 8, 7, 3.5) end
-ICONS.box = function(d) d.rect(3, 3, 18, 18, 3) d.line(3, 9, 21, 9) d.line(12, 9, 12, 21) end
-ICONS.search = function(d) d.ring(10.5, 10.5, 6.5) d.line(15.5, 15.5, 20.5, 20.5) end
+ICONS.crosshair = function(d)
+    d.band(12, 12, 7.6, 2)
+    d.thick(12, 1.5, 12, 5.6, 2.2) d.thick(12, 18.4, 12, 22.5, 2.2)
+    d.thick(1.5, 12, 5.6, 12, 2.2) d.thick(18.4, 12, 22.5, 12, 2.2)
+    d.dot(12, 12, 1.5, "accent")
+end
+ICONS.shield = function(d)
+    d.fill(4.4, 2.6, 15.2, 18.4, 6.5)
+    d.thick(8, 12.2, 10.8, 15, 2.6, "dim")
+    d.thick(10.8, 15, 16, 8.6, 2.6, "dim")
+end
+ICONS.user = function(d)
+    d.dot(12, 7.6, 4.2)
+    d.fill(4.2, 14.6, 15.6, 8.6, 4.3)
+end
+ICONS.users = function(d)
+    d.dot(8.6, 7.8, 3.4)
+    d.dot(16.2, 8.6, 2.9, "accent")
+    d.fill(2, 14.8, 13.4, 7.8, 3.9)
+    d.fill(13.6, 15.2, 8.4, 6.8, 3.4, "accent")
+end
+ICONS.box = function(d)
+    d.fill(3, 3, 18, 18, 3)
+    d.thick(3, 9, 21, 9, 1.6, "dim")
+    d.thick(12, 9, 12, 21, 1.6, "dim")
+end
+ICONS.search = function(d)
+    d.band(10.2, 10.2, 6.2, 2.8)
+    d.thick(14.8, 14.8, 20.5, 20.5, 3)
+end
 ICONS.grid = function(d)
-    d.rect(3, 3, 7.5, 7.5, 1.5) d.rect(13.5, 3, 7.5, 7.5, 1.5)
-    d.rect(3, 13.5, 7.5, 7.5, 1.5) d.rect(13.5, 13.5, 7.5, 7.5, 1.5)
+    d.fill(3, 3, 7.8, 7.8, 2) d.fill(13.2, 3, 7.8, 7.8, 2, "accent")
+    d.fill(3, 13.2, 7.8, 7.8, 2, "accent") d.fill(13.2, 13.2, 7.8, 7.8, 2)
 end
 ICONS.list = function(d)
-    d.line(8, 6, 21, 6) d.line(8, 12, 21, 12) d.line(8, 18, 21, 18)
-    d.dot(4, 6, 1.3) d.dot(4, 12, 1.3) d.dot(4, 18, 1.3)
+    d.thick(8, 6, 21, 6, 2.6) d.thick(8, 12, 21, 12, 2.6) d.thick(8, 18, 21, 18, 2.6)
+    d.dot(4, 6, 1.7, "accent") d.dot(4, 12, 1.7, "accent") d.dot(4, 18, 1.7, "accent")
 end
-ICONS.plus = function(d) d.line(12, 4, 12, 20) d.line(4, 12, 20, 12) end
-ICONS.minus = function(d) d.line(4, 12, 20, 12) end
-ICONS.check = function(d) d.line(4.5, 12.5, 9.5, 17.5) d.line(9.5, 17.5, 19.5, 7) end
-ICONS.x = function(d) d.line(5, 5, 19, 19) d.line(19, 5, 5, 19) end
-ICONS["arrow-right"] = function(d) d.line(4, 12, 19, 12) d.line(13, 6, 19, 12) d.line(13, 18, 19, 12) end
-ICONS["arrow-left"] = function(d) d.line(20, 12, 5, 12) d.line(11, 6, 5, 12) d.line(11, 18, 5, 12) end
-ICONS["arrow-up"] = function(d) d.line(12, 20, 12, 5) d.line(6, 11, 12, 5) d.line(18, 11, 12, 5) end
-ICONS["arrow-down"] = function(d) d.line(12, 4, 12, 19) d.line(6, 13, 12, 19) d.line(18, 13, 12, 19) end
-ICONS["chevron-right"] = function(d) d.line(9, 5, 16, 12) d.line(16, 12, 9, 19) end
-ICONS["chevron-down"] = function(d) d.line(5, 9, 12, 16) d.line(12, 16, 19, 9) end
-ICONS.folder = function(d) d.rect(2.5, 6, 19, 14, 2.5) d.fill(2.5, 4, 8, 4, 1.5) end
-ICONS.save = function(d) d.rect(3, 3, 18, 18, 3) d.fill(8, 3, 8, 5, 1) d.rect(7, 14, 10, 7, 1) end
-ICONS.globe = function(d) d.ring(12, 12, 9) d.line(3, 12, 21, 12) d.rect(8, 3, 8, 18, 4) end
-ICONS.lock = function(d) d.ring(12, 8, 4.5) d.rect(4.5, 10.5, 15, 11, 2.5) d.dot(12, 16, 1.3) end
+ICONS.plus = function(d) d.thick(12, 4, 12, 20, 3.4) d.thick(4, 12, 20, 12, 3.4) end
+ICONS.minus = function(d) d.thick(4, 12, 20, 12, 3.4) end
+ICONS.check = function(d) d.thick(4.2, 12.6, 9.6, 18, 3.4) d.thick(9.6, 18, 19.8, 6.4, 3.4) end
+ICONS.x = function(d) d.thick(5.2, 5.2, 18.8, 18.8, 3.2) d.thick(18.8, 5.2, 5.2, 18.8, 3.2) end
+ICONS["arrow-right"] = function(d) d.thick(4, 12, 19, 12, 3) d.thick(12.5, 5.5, 19, 12, 3) d.thick(12.5, 18.5, 19, 12, 3) end
+ICONS["arrow-left"] = function(d) d.thick(20, 12, 5, 12, 3) d.thick(11.5, 5.5, 5, 12, 3) d.thick(11.5, 18.5, 5, 12, 3) end
+ICONS["arrow-up"] = function(d) d.thick(12, 20, 12, 5, 3) d.thick(5.5, 11.5, 12, 5, 3) d.thick(18.5, 11.5, 12, 5, 3) end
+ICONS["arrow-down"] = function(d) d.thick(12, 4, 12, 19, 3) d.thick(5.5, 12.5, 12, 19, 3) d.thick(18.5, 12.5, 12, 19, 3) end
+ICONS["chevron-right"] = function(d) d.thick(8.5, 4.5, 16, 12, 3) d.thick(16, 12, 8.5, 19.5, 3) end
+ICONS["chevron-down"] = function(d) d.thick(4.5, 8.5, 12, 16, 3) d.thick(12, 16, 19.5, 8.5, 3) end
+ICONS.folder = function(d)
+    -- Body drawn first, tab (accent) second: the tab genuinely overlaps the
+    -- body's top-left corner, so it must be parented last to stay on top
+    -- and stay visible in Colored mode instead of being clipped by the body.
+    d.fill(2.2, 6.4, 19.6, 13.6, 2.6)
+    d.fill(2.2, 4, 8.6, 3.6, 1.6, "accent")
+end
+ICONS.save = function(d)
+    d.fill(3, 3, 18, 18, 3)
+    d.fill(7.6, 3, 8.8, 5.4, 1, "dim")
+    d.fill(6.8, 13.6, 10.4, 7.4, 1.4, "dim")
+end
+ICONS.globe = function(d)
+    d.dot(12, 12, 9)
+    d.thick(3, 12, 21, 12, 1.6, "dim")
+    d.fill(8.4, 3, 7.2, 18, 3.6, "dim")
+end
+ICONS.lock = function(d)
+    d.band(12, 8.4, 4.4, 2.2)
+    d.fill(4.2, 10.4, 15.6, 11.4, 3)
+    d.dot(12, 15.6, 1.5, "dim")
+end
 ICONS.trash = function(d)
-    d.rect(5.5, 7, 13, 14.5, 2) d.line(3, 6.5, 21, 6.5) d.line(9.5, 3.5, 14.5, 3.5)
-    d.line(10, 11, 10, 17) d.line(14, 11, 14, 17)
+    d.fill(5.6, 7.4, 12.8, 14, 2.4)
+    d.thick(3, 6.6, 21, 6.6, 2.4)
+    d.thick(9.4, 3.4, 14.6, 3.4, 2.4)
+    d.thick(9.6, 11, 9.6, 17, 1.6, "dim") d.thick(14.4, 11, 14.4, 17, 1.6, "dim")
 end
-ICONS.bell = function(d) d.rect(6, 3, 12, 14, 6) d.line(3.5, 17.5, 20.5, 17.5) d.dot(12, 20.5, 1.8) end
-ICONS.flag = function(d) d.line(5, 3, 5, 21) d.rect(5, 3.5, 14, 10, 1.5) end
-ICONS.refresh = function(d) d.ring(12, 12, 8) d.line(20, 4, 20, 9.5) d.line(20, 9.5, 14.5, 9.5) end
-ICONS.egg = function(d) d.rect(5.5, 2.5, 13, 19, 6.5) end
+ICONS.bell = function(d)
+    d.fill(6, 3, 12, 14, 6)
+    d.thick(3.5, 17.5, 20.5, 17.5, 2.4)
+    d.dot(12, 20.6, 2, "accent")
+end
+ICONS.flag = function(d)
+    d.thick(5, 3, 5, 21, 2.6)
+    d.fill(5, 3.6, 14.4, 10, 1.6, "accent")
+end
+ICONS.refresh = function(d)
+    d.band(12, 12, 8, 2.6)
+    d.thick(20, 4, 20, 9, 2.6, "accent") d.thick(20, 9, 15, 9, 2.6, "accent")
+end
+ICONS.egg = function(d)
+    d.fill(5.4, 2.4, 13.2, 19.2, 6.6)
+    d.dot(9.4, 9, 1.1, "dim") d.dot(14.2, 12.4, 0.95, "dim") d.dot(10.6, 15, 0.85, "dim")
+end
 ICONS.cpu = function(d)
-    d.rect(5, 5, 14, 14, 2) d.rect(9, 9, 6, 6, 1)
-    d.line(2, 9, 5, 9) d.line(2, 15, 5, 15) d.line(19, 9, 22, 9) d.line(19, 15, 22, 15)
-    d.line(9, 2, 9, 5) d.line(15, 2, 15, 5) d.line(9, 19, 9, 22) d.line(15, 19, 15, 22)
+    d.fill(5, 5, 14, 14, 2.4)
+    d.fill(9, 9, 6, 6, 1, "dim")
+    d.thick(1.6, 9, 5, 9, 1.6) d.thick(1.6, 15, 5, 15, 1.6)
+    d.thick(19, 9, 22.4, 9, 1.6) d.thick(19, 15, 22.4, 15, 1.6)
+    d.thick(9, 1.6, 9, 5, 1.6) d.thick(15, 1.6, 15, 5, 1.6)
+    d.thick(9, 19, 9, 22.4, 1.6) d.thick(15, 19, 15, 22.4, 1.6)
 end
-ICONS.monitor = function(d) d.rect(2.5, 4, 19, 13, 2) d.line(12, 17, 12, 21) d.line(7.5, 21, 16.5, 21) end
+ICONS.monitor = function(d)
+    d.fill(2.2, 3.6, 19.6, 13.4, 2.2)
+    d.fill(4.4, 5.6, 15.2, 9.4, 1.2, "dim")
+    d.thick(12, 17, 12, 21, 2.2) d.thick(7.5, 21, 16.5, 21, 2.2)
+end
 ICONS.gamepad = function(d)
-    d.rect(2, 7, 20, 10, 5) d.line(6.5, 12, 10.5, 12) d.line(8.5, 10, 8.5, 14)
-    d.dot(15.5, 10.8, 1.3) d.dot(17.5, 13.2, 1.3)
+    d.fill(2, 7, 20, 11, 5.5)
+    d.thick(6.5, 12.2, 10.5, 12.2, 2, "dim") d.thick(8.5, 10.2, 8.5, 14.2, 2, "dim")
+    d.dot(15.6, 10.6, 1.4, "accent") d.dot(17.6, 13, 1.4, "accent")
 end
-ICONS.coins = function(d) d.ring(9, 10, 6) d.ring(15, 14, 6) end
-ICONS.layers = function(d) d.rect(4, 3, 16, 5, 1.5) d.rect(4, 9.5, 16, 5, 1.5) d.rect(4, 16, 16, 5, 1.5) end
-ICONS.radar = function(d) d.dot(12, 12, 2) d.ring(12, 12, 6) d.ring(12, 12, 10) end
-ICONS.activity = function(d) d.line(3, 12, 7, 12) d.line(7, 12, 10, 5) d.line(10, 5, 14, 19) d.line(14, 19, 17, 12) d.line(17, 12, 21, 12) end
-ICONS.clock = function(d) d.ring(12, 12, 9) d.line(12, 7, 12, 12.5) d.line(12, 12.5, 15.5, 14.5) end
-ICONS.pin = function(d) d.ring(12, 9.5, 7.5) d.line(6.5, 13.5, 12, 21.5) d.line(17.5, 13.5, 12, 21.5) d.dot(12, 9.5, 2.4) end
-ICONS.chart = function(d) d.line(6, 20, 6, 12) d.line(12, 20, 12, 5) d.line(18, 20, 18, 9) d.line(3, 21, 21, 21) end
-ICONS.power = function(d) d.ring(12, 13, 8) d.line(12, 3, 12, 12) end
-ICONS.sparkles = function(d) d.line(12, 3, 12, 21) d.line(3, 12, 21, 12) d.line(7, 7, 17, 17) d.line(17, 7, 7, 17) d.dot(12, 12, 2.2) end
-ICONS.sword = function(d) d.line(5.5, 18.5, 19.5, 4.5) d.line(11, 9.5, 14.5, 13) d.line(3.5, 20.5, 6.5, 17.5) end
+ICONS.coins = function(d)
+    d.dot(9, 10, 6.2)
+    d.dot(15, 14, 6.2, "accent")
+end
+ICONS.layers = function(d)
+    d.fill(4, 3, 16, 5, 1.8) d.fill(4, 9.5, 16, 5, 1.8, "accent") d.fill(4, 16, 16, 5, 1.8)
+end
+ICONS.radar = function(d)
+    d.band(12, 12, 9.4, 1.8, "dim")
+    d.band(12, 12, 5.8, 1.8, "dim")
+    d.dot(12, 12, 1.8)
+    d.dot(16.6, 7.6, 1.6, "accent")
+end
+ICONS.activity = function(d)
+    d.thick(3, 12, 7, 12, 2.6) d.thick(7, 12, 10, 4.4, 2.6)
+    d.thick(10, 4.4, 14, 19.6, 2.6, "accent") d.thick(14, 19.6, 17, 12, 2.6)
+    d.thick(17, 12, 21, 12, 2.6)
+end
+ICONS.clock = function(d)
+    d.dot(12, 12, 9)
+    d.thick(12, 12, 12, 7, 1.8, "dim") d.thick(12, 12, 15.4, 14.2, 1.8, "dim")
+    d.dot(12, 12, 1.3)
+end
+ICONS.pin = function(d)
+    d.band(12, 9.6, 6.8, 2.2)
+    d.thick(7.6, 13.6, 12, 21.5, 2.6) d.thick(16.4, 13.6, 12, 21.5, 2.6)
+    d.dot(12, 9.6, 2.2, "accent")
+end
+ICONS.chart = function(d)
+    d.thick(6, 20, 6, 12.5, 3.2)
+    d.thick(12, 20, 12, 6, 3.2, "accent")
+    d.thick(18, 20, 18, 9.5, 3.2)
+end
+ICONS.power = function(d) d.band(12, 13, 7.6, 2.6) d.thick(12, 3, 12, 12.5, 2.8, "accent") end
+ICONS.sparkles = function(d)
+    d.thick(12, 3, 12, 21, 2.2) d.thick(3, 12, 21, 12, 2.2)
+    d.dot(12, 12, 2.6)
+    d.dot(19, 5, 1.3, "accent") d.dot(5, 19, 1, "accent")
+end
+ICONS.sword = function(d)
+    d.thick(5, 19, 19, 5, 2.6)
+    d.thick(3, 21, 6.4, 17.6, 2.6, "accent")
+    d.thick(10.4, 8.6, 13.8, 12, 2.6, "dim")
+end
 ICONS.crown = function(d)
-    d.line(3, 18, 5, 7) d.line(5, 7, 9.5, 12) d.line(9.5, 12, 12, 5) d.line(12, 5, 14.5, 12)
-    d.line(14.5, 12, 19, 7) d.line(19, 7, 21, 18) d.line(3, 18, 21, 18)
+    d.fill(3.6, 13, 16.8, 6, 1.6)
+    d.thick(3.6, 13, 5.6, 6.4, 2.4) d.thick(5.6, 6.4, 9, 11, 2.4)
+    d.thick(9, 11, 12, 5, 2.4) d.thick(12, 5, 15, 11, 2.4)
+    d.thick(15, 11, 18.4, 6.4, 2.4) d.thick(18.4, 6.4, 20.4, 13, 2.4)
+    d.dot(12, 5, 1.6, "accent") d.dot(5.6, 6.4, 1.3, "accent") d.dot(18.4, 6.4, 1.3, "accent")
 end
-ICONS.paw = function(d) d.dot(6, 7.5, 2.1) d.dot(10, 4.5, 2.1) d.dot(14, 4.5, 2.1) d.dot(18, 7.5, 2.1) d.fill(7, 11, 10, 9.5, 5) end
-ICONS.hammer = function(d) d.line(4, 20, 12.5, 11.5) d.thick(11, 6, 18, 13, 5.5) end
-ICONS.dice = function(d) d.rect(3, 3, 18, 18, 3.5) d.dot(8, 8, 1.5) d.dot(16, 8, 1.5) d.dot(12, 12, 1.5) d.dot(8, 16, 1.5) d.dot(16, 16, 1.5) end
-ICONS.trophy = function(d) d.rect(7, 3, 10, 11, 4) d.line(12, 14, 12, 18) d.line(8, 20.5, 16, 20.5) d.line(4, 5, 4, 9.5) d.line(20, 5, 20, 9.5) end
-ICONS.info = function(d) d.ring(12, 12, 9) d.dot(12, 8, 1.3) d.line(12, 11, 12, 16.5) end
-ICONS.alert = function(d) d.ring(12, 12, 9) d.line(12, 7.5, 12, 13) d.dot(12, 16.5, 1.3) end
-ICONS.keyboard = function(d) d.rect(2, 6, 20, 12, 2.5) d.dot(6, 10, 1) d.dot(9.5, 10, 1) d.dot(13, 10, 1) d.dot(16.5, 10, 1) d.line(7, 14.5, 17, 14.5) end
-ICONS.mouse = function(d) d.rect(6.5, 2.5, 11, 19, 5.5) d.line(12, 6, 12, 10) end
-ICONS.percent = function(d) d.line(5, 19, 19, 5) d.ring(7, 7, 2.5) d.ring(17, 17, 2.5) end
-ICONS.wallet = function(d) d.rect(2.5, 5.5, 19, 13.5, 2.5) d.fill(14.5, 10.5, 7, 4.5, 1.2) end
-ICONS.sun = function(d) d.dot(12, 12, 3.6) rays(d, 12, 12, 6.8, 9.6, 8) end
-ICONS.filter = function(d) d.line(3, 5, 21, 5) d.line(6, 11, 18, 11) d.line(9.5, 17, 14.5, 17) end
-ICONS.book = function(d) d.rect(4, 3, 16, 18, 2) d.line(8.5, 3, 8.5, 21) end
-ICONS.send = function(d) d.line(21, 3, 3, 10.5) d.line(3, 10.5, 11, 13.5) d.line(11, 13.5, 21, 3) d.line(11, 13.5, 14, 21) d.line(14, 21, 21, 3) end
-ICONS.gauge = function(d) d.ring(12, 13, 9) d.line(12, 13, 16.5, 8.5) d.dot(12, 13, 1.6) end
-ICONS.orbit = function(d) d.ring(12, 12, 3) d.ring(12, 12, 9) d.dot(19.5, 6.5, 1.9) end
-ICONS.tornado = function(d) d.line(3, 5, 21, 5) d.line(5, 10, 19, 10) d.line(8, 15, 16, 15) d.line(10.5, 20, 13.5, 20) end
-ICONS["repeat"] = function(d) d.line(4, 8, 18, 8) d.line(15, 5, 18, 8) d.line(15, 11, 18, 8) d.line(20, 16, 6, 16) d.line(9, 13, 6, 16) d.line(9, 19, 6, 16) end
-ICONS.skull = function(d) d.ring(12, 10, 8) d.dot(9, 9.5, 1.8) d.dot(15, 9.5, 1.8) d.line(9, 18, 9, 21) d.line(12, 18, 12, 21) d.line(15, 18, 15, 21) end
-ICONS["trending-up"] = function(d) d.line(3, 17, 9, 11) d.line(9, 11, 13, 15) d.line(13, 15, 21, 7) d.line(16, 7, 21, 7) d.line(21, 7, 21, 12) end
-ICONS.door = function(d) d.rect(5, 3, 14, 18, 1.5) d.dot(15.5, 12, 1.3) end
+ICONS.paw = function(d)
+    d.dot(6, 7.6, 2.3) d.dot(10, 4.4, 2.3) d.dot(14, 4.4, 2.3) d.dot(18, 7.6, 2.3)
+    d.fill(6.6, 10.6, 10.8, 9.6, 5, "accent")
+end
+ICONS.hammer = function(d)
+    d.thick(4, 20, 12.5, 11.5, 3.4)
+    d.thick(11, 6, 18, 13, 6.2, "accent")
+end
+ICONS.dice = function(d)
+    d.fill(3, 3, 18, 18, 4)
+    d.dot(8, 8, 1.7, "dim") d.dot(16, 8, 1.7, "dim") d.dot(12, 12, 1.7, "dim")
+    d.dot(8, 16, 1.7, "dim") d.dot(16, 16, 1.7, "dim")
+end
+ICONS.trophy = function(d)
+    d.fill(7, 3, 10, 11, 4)
+    d.thick(12, 14, 12, 18, 2.4)
+    d.thick(8, 20.5, 16, 20.5, 2.6)
+    d.thick(4, 5, 4, 9.6, 2.2, "accent") d.thick(20, 5, 20, 9.6, 2.2, "accent")
+    d.thick(4, 9.6, 7, 9.6, 2.2, "accent") d.thick(20, 9.6, 17, 9.6, 2.2, "accent")
+end
+ICONS.info = function(d)
+    d.dot(12, 12, 9)
+    d.dot(12, 7.6, 1.4, "dim")
+    d.thick(12, 10.6, 12, 16.6, 2.2, "dim")
+end
+ICONS.alert = function(d)
+    d.dot(12, 12, 9, "accent")
+    d.thick(12, 7, 12, 13.4, 2.2, "dim")
+    d.dot(12, 16.6, 1.4, "dim")
+end
+ICONS.keyboard = function(d)
+    d.fill(2, 6, 20, 12, 2.6)
+    d.dot(6, 9.6, 1.1, "dim") d.dot(9.6, 9.6, 1.1, "dim") d.dot(13.2, 9.6, 1.1, "dim") d.dot(16.8, 9.6, 1.1, "dim")
+    d.fill(6.4, 13.4, 11.2, 2.4, 1.2, "accent")
+end
+ICONS.mouse = function(d)
+    d.fill(6.5, 2.5, 11, 19, 5.5)
+    d.thick(12, 6, 12, 10, 2, "dim")
+end
+ICONS.percent = function(d) d.thick(5, 19, 19, 5, 2.6) d.dot(7, 7, 2.6, "accent") d.dot(17, 17, 2.6, "accent") end
+ICONS.wallet = function(d)
+    d.fill(2.5, 5.5, 19, 13.5, 2.6)
+    d.fill(13.6, 10, 8.2, 5.4, 1.4, "dim")
+    d.dot(16.4, 12.7, 0.9, "dim")
+end
+ICONS.sun = function(d) d.dot(12, 12, 4.2) rays(d, 12, 12, 7, 9.8, 8, "accent", 2.2) end
+ICONS.filter = function(d) d.thick(3, 5, 21, 5, 2.4) d.thick(6, 11, 18, 11, 2.4) d.thick(9.5, 17, 14.5, 17, 2.4) end
+ICONS.book = function(d)
+    d.fill(4, 3, 16, 18, 2.2)
+    d.thick(8.5, 3, 8.5, 21, 1.6, "dim")
+end
+ICONS.send = function(d)
+    d.thick(21, 3, 3, 10.5, 2.4) d.thick(3, 10.5, 11, 13.5, 2.4) d.thick(11, 13.5, 21, 3, 2.4)
+    d.thick(11, 13.5, 14, 21, 2.4, "accent") d.thick(14, 21, 21, 3, 2.4, "accent")
+end
+ICONS.gauge = function(d)
+    d.band(12, 13, 8.6, 2.6, "dim")
+    d.thick(12, 13, 16.6, 8.2, 2.2, "accent")
+    d.dot(12, 13, 1.8)
+end
+ICONS.orbit = function(d)
+    d.dot(12, 12, 3)
+    d.band(12, 12, 9, 1.8, "dim")
+    d.dot(19.6, 6.4, 2, "accent")
+end
+ICONS.tornado = function(d) d.thick(3, 5, 21, 5, 2.4) d.thick(5, 10, 19, 10, 2.4) d.thick(8, 15, 16, 15, 2.4, "accent") d.thick(10.5, 20, 13.5, 20, 2.4, "accent") end
+ICONS["repeat"] = function(d)
+    d.thick(4, 8, 18, 8, 2.4) d.thick(15, 5, 18, 8, 2.4) d.thick(15, 11, 18, 8, 2.4)
+    d.thick(20, 16, 6, 16, 2.4, "accent") d.thick(9, 13, 6, 16, 2.4, "accent") d.thick(9, 19, 6, 16, 2.4, "accent")
+end
+ICONS.skull = function(d)
+    d.fill(4, 3.5, 16, 14, 7)
+    d.dot(9, 10, 2, "dim") d.dot(15, 10, 2, "dim")
+    d.thick(9, 18, 9, 21, 2, "dim") d.thick(12, 18, 12, 21, 2, "dim") d.thick(15, 18, 15, 21, 2, "dim")
+end
+ICONS["trending-up"] = function(d)
+    d.thick(3, 17, 9, 11, 2.6) d.thick(9, 11, 13, 15, 2.6) d.thick(13, 15, 21, 7, 2.6)
+    d.thick(16, 7, 21, 7, 2.6, "accent") d.thick(21, 7, 21, 12, 2.6, "accent")
+end
+ICONS.door = function(d)
+    d.fill(5, 3, 14, 18, 1.8)
+    d.dot(15.5, 12, 1.5, "dim")
+end
 ICONS.star = function(d)
+    -- True pentagram: all 5 chords cross through the shared central region,
+    -- not just touch at endpoints. The accent-tinted chord must be the LAST
+    -- one drawn (i == 4, not i == 0) so the 4 primary chords parented after
+    -- it don't paint over its share of that crossing zone in Colored mode.
     for i = 0, 4 do
         local a1 = -math.pi / 2 + i * 2 * math.pi / 5
         local a2 = -math.pi / 2 + (i + 2) * 2 * math.pi / 5
-        d.line(12 + 9 * math.cos(a1), 12 + 9 * math.sin(a1), 12 + 9 * math.cos(a2), 12 + 9 * math.sin(a2))
+        d.thick(12 + 9 * math.cos(a1), 12 + 9 * math.sin(a1), 12 + 9 * math.cos(a2), 12 + 9 * math.sin(a2), 6.2, i == 4 and "accent" or nil)
     end
 end
-ICONS.heart = function(d) d.ring(8, 9, 4.2) d.ring(16, 9, 4.2) d.line(4.2, 11.5, 12, 20) d.line(19.8, 11.5, 12, 20) end
+ICONS.heart = function(d)
+    d.dot(8, 9, 4.3) d.dot(16, 9, 4.3, "accent")
+    d.thick(4.2, 11, 12, 20, 7.6) d.thick(19.8, 11, 12, 20, 7.6, "accent")
+end
 ICONS.wrench = ICONS.hammer
 ICONS.tool = ICONS.hammer
-ICONS.bug = function(d) d.rect(7, 8, 10, 13, 5) d.line(9.5, 8, 8, 4.5) d.line(14.5, 8, 16, 4.5) d.line(7, 12, 3, 11) d.line(17, 12, 21, 11) d.line(7, 17, 3.5, 19) d.line(17, 17, 20.5, 19) d.line(12, 8, 12, 21) end
-ICONS.rocket = function(d) d.line(12, 2.5, 6.5, 14) d.line(12, 2.5, 17.5, 14) d.line(6.5, 14, 17.5, 14) d.line(9, 14, 8, 20) d.line(15, 14, 16, 20) d.dot(12, 9, 1.8) end
-ICONS.map = function(d) d.rect(3, 4, 18, 16, 2) d.line(9, 4, 9, 20) d.line(15, 4, 15, 20) end
+ICONS.bug = function(d)
+    d.fill(7, 8, 10, 13, 5)
+    d.dot(9.4, 8.6, 1, "dim") d.dot(14.6, 8.6, 1, "dim")
+    d.thick(7, 12, 3, 11, 2) d.thick(17, 12, 21, 11, 2)
+    d.thick(7, 17, 3.5, 19, 2) d.thick(17, 17, 20.5, 19, 2)
+    d.thick(12, 8, 12, 21, 2, "dim")
+end
+ICONS.rocket = function(d)
+    d.thick(12, 2.5, 6.5, 14, 5.2) d.thick(12, 2.5, 17.5, 14, 5.2) d.thick(6.5, 14, 17.5, 14, 5.2)
+    d.dot(12, 9, 1.9, "dim")
+    d.thick(9, 14, 8, 20, 3, "accent") d.thick(15, 14, 16, 20, 3, "accent")
+end
+ICONS.map = function(d)
+    d.fill(3, 4, 18, 16, 2.4)
+    d.thick(9, 4, 9, 20, 1.6, "dim") d.thick(15, 4, 15, 20, 1.6, "dim")
+end
 ICONS.timer = ICONS.clock
 ICONS.fps = ICONS.gauge
 ICONS.esp = ICONS.radar
@@ -707,18 +903,245 @@ ICONS.money = ICONS.coins
 ICONS.config = ICONS.save
 ICONS.gear = ICONS.settings
 
+-- ============================================================
+-- Extended pictogram library
+-- ============================================================
+ICONS.fire = function(d)
+    d.dot(12, 14.5, 6.6)
+    d.dot(12.6, 8, 3.2, "accent")
+    d.dot(11.6, 17.5, 2.2, "dim")
+end
+ICONS.gem = function(d)
+    d.thick(4, 9, 20, 9, 6.4)
+    d.thick(4, 9, 12, 21, 6.4)
+    d.thick(20, 9, 12, 21, 6.4)
+    d.dot(12, 6, 2.6, "accent")
+end
+ICONS.diamond = ICONS.gem
+ICONS.key = function(d)
+    d.band(7.6, 7.6, 4.6, 2.6)
+    d.thick(10.6, 10.6, 20.5, 20.5, 3, "accent")
+    d.thick(16, 16, 18.4, 13.6, 2.6, "accent") d.thick(18.4, 18.4, 20.8, 16, 2.6, "accent")
+end
+ICONS.gift = function(d)
+    d.fill(3, 10, 18, 11, 2)
+    d.fill(4.4, 10, 15.2, 3.6, 1, "accent")
+    d.thick(12, 3.4, 12, 21, 2, "dim")
+    d.dot(8.4, 6.4, 2.4, "accent") d.dot(15.6, 6.4, 2.4, "accent")
+end
+ICONS.magnet = function(d)
+    d.thick(6, 4, 6, 14, 4.4)
+    d.thick(18, 4, 18, 14, 4.4, "accent")
+    d.band(12, 14, 6.2, 4.4, "dim")
+end
+ICONS.wifi = function(d)
+    d.thick(5, 17, 5, 20, 3)
+    d.thick(11, 13, 11, 20, 3, "dim")
+    d.thick(17, 8, 17, 20, 3, "accent")
+end
+ICONS.battery = function(d)
+    d.fill(2.5, 7, 17, 10, 2.4)
+    d.fill(19.5, 10, 2.5, 4, 1, "dim")
+    d.fill(4.5, 9, 10, 6, 1.2, "accent")
+end
+ICONS.download = function(d)
+    d.thick(12, 3, 12, 14, 2.8)
+    d.thick(6.5, 10, 12, 15.5, 2.8) d.thick(17.5, 10, 12, 15.5, 2.8)
+    d.thick(4, 20, 20, 20, 2.8, "accent")
+end
+ICONS.upload = function(d)
+    d.thick(12, 15, 12, 4, 2.8)
+    d.thick(6.5, 9, 12, 3.5, 2.8) d.thick(17.5, 9, 12, 3.5, 2.8)
+    d.thick(4, 20, 20, 20, 2.8, "accent")
+end
+ICONS.link = function(d)
+    d.band(8.4, 15.6, 4, 3)
+    d.band(15.6, 8.4, 4, 3, "accent")
+end
+ICONS.volume = function(d)
+    d.fill(3, 9.4, 6.5, 5.2, 1.2)
+    d.thick(9.5, 9.4, 13.5, 5.4, 2.4) d.thick(9.5, 14.6, 13.5, 18.6, 2.4)
+    d.thick(16.2, 9, 16.2, 15, 2.2, "accent") d.thick(19, 6.6, 19, 17.4, 2.2, "accent")
+end
+ICONS.play = function(d)
+    d.thick(7, 4.5, 19, 12, 6)
+    d.thick(19, 12, 7, 19.5, 6, "accent")
+    d.thick(7, 4.5, 7, 19.5, 6)
+end
+ICONS.pause = function(d) d.thick(8, 4, 8, 20, 4.4) d.thick(16, 4, 16, 20, 4.4, "accent") end
+ICONS.ghost = function(d)
+    d.fill(5, 4, 14, 15, 7)
+    d.dot(9, 11, 1.6, "dim") d.dot(15, 11, 1.6, "dim")
+    d.dot(6.5, 19.5, 1.6) d.dot(10.5, 19.5, 1.6, "accent") d.dot(14.5, 19.5, 1.6) d.dot(17.5, 19, 1.6, "accent")
+end
+ICONS.leaf = function(d)
+    d.thick(5, 19, 19, 5, 7)
+    d.thick(9, 15, 15, 9, 1.6, "dim")
+end
+ICONS.droplet = function(d)
+    d.dot(12, 14, 5.6)
+    d.thick(6.6, 14, 12, 3.2, 2.4, "accent")
+    d.thick(17.4, 14, 12, 3.2, 2.4, "accent")
+    d.dot(10.2, 12.4, 1.4, "dim")
+end
+ICONS.compass = function(d)
+    d.band(12, 12, 9, 2.2, "dim")
+    d.thick(9, 15, 12, 12, 2.2, "accent") d.thick(15, 9, 12, 12, 2.2, "accent")
+    d.dot(12, 12, 1.4)
+end
+ICONS.hourglass = function(d)
+    d.fill(5, 3, 14, 4.4, 1.4)
+    d.fill(5, 16.6, 14, 4.4, 1.4)
+    d.thick(6, 4.6, 18, 19.4, 3.4, "dim") d.thick(18, 4.6, 6, 19.4, 3.4, "dim")
+    d.dot(12, 12, 1.6, "accent")
+end
+ICONS.medal = function(d)
+    d.thick(8.4, 3, 5, 9.4, 2.2) d.thick(15.6, 3, 19, 9.4, 2.2)
+    d.dot(12, 15, 6.4)
+    d.dot(12, 15, 2.6, "dim")
+end
+ICONS.thumbsup = function(d)
+    d.fill(3, 10, 5.4, 11, 2.2)
+    d.fill(9, 9, 10.6, 12, 3.4, "accent")
+    d.thick(9, 9, 7.2, 3.6, 2.4, "dim")
+end
+ICONS.warning = ICONS.alert
+ICONS.question = function(d)
+    d.dot(12, 12, 9, "accent")
+    d.thick(9, 8.6, 12, 7, 2.2, "dim") d.thick(12, 7, 14.6, 9.4, 2.2, "dim")
+    d.thick(14.6, 9.4, 12, 12.4, 2.2, "dim") d.thick(12, 12.4, 12, 14.4, 2.2, "dim")
+    d.dot(12, 17.4, 1.3, "dim")
+end
+ICONS.camera = function(d)
+    d.fill(2.5, 7, 19, 12.5, 2.6)
+    d.fill(8.4, 4, 7.2, 3.4, 1, "dim")
+    d.dot(12, 13.2, 4, "dim")
+    d.dot(12, 13.2, 2, "accent")
+end
+ICONS.palette = function(d)
+    d.dot(12, 12, 9.4)
+    d.dot(8, 9, 1.7, "dim") d.dot(12.4, 7, 1.7, "dim") d.dot(16.4, 9.4, 1.7, "dim") d.dot(9.4, 15.6, 1.7, "dim")
+end
+ICONS.server = function(d)
+    d.fill(3, 4, 18, 7, 1.8)
+    d.fill(3, 13, 18, 7, 1.8, "accent")
+    d.dot(6.2, 7.5, 1, "dim") d.dot(6.2, 16.5, 1, "dim")
+end
+ICONS.database = function(d)
+    d.band(12, 5.6, 7.4, 2.4)
+    d.fill(4.6, 5.6, 14.8, 12.8, 0)
+    d.band(12, 18.4, 7.4, 2.4, "accent")
+end
+ICONS.terminal = function(d)
+    d.fill(2.5, 4, 19, 16, 2.4)
+    d.thick(5.5, 9, 9.5, 12, 2.2, "accent") d.thick(5.5, 15, 9.5, 12, 2.2, "accent")
+    d.thick(12, 15, 17.5, 15, 2.2, "dim")
+end
+ICONS.code = ICONS.terminal
+ICONS.bookmark = function(d)
+    d.fill(5, 3, 14, 14, 1.6)
+    d.thick(5, 15, 12, 20.5, 2.4)
+    d.thick(19, 15, 12, 20.5, 2.4)
+end
+ICONS.tag = function(d)
+    d.fill(3, 4, 12, 10, 1.8)
+    d.thick(12, 9, 20, 17, 6, "accent")
+    d.dot(7, 8, 1.4, "dim")
+end
+ICONS.calendar = function(d)
+    d.fill(3, 4.5, 18, 16, 2.4)
+    d.fill(3, 4.5, 18, 4.6, 2, "accent")
+    d.thick(7.5, 2.5, 7.5, 6.5, 1.8, "dim") d.thick(16.5, 2.5, 16.5, 6.5, 1.8, "dim")
+end
+ICONS.mail = function(d)
+    d.fill(2.5, 5, 19, 14, 2.4)
+    d.thick(3.4, 6.2, 12, 13, 2, "dim") d.thick(20.6, 6.2, 12, 13, 2, "dim")
+end
+ICONS.phone = function(d)
+    d.thick(7, 3.4, 15.5, 19.4, 6.4)
+    d.dot(11.2, 18, 1, "dim")
+end
+ICONS.wand = function(d)
+    d.thick(5, 19, 16, 8, 3)
+    d.dot(18.4, 5.6, 1.8, "accent")
+    d.dot(21, 8.4, 1, "accent") d.dot(15.8, 3, 1, "accent")
+end
+ICONS.flask = function(d)
+    d.thick(9.5, 3, 9.5, 9.4, 2.4)
+    d.thick(14.5, 3, 14.5, 9.4, 2.4)
+    d.thick(9.5, 3, 14.5, 3, 2.4)
+    d.dot(12, 16, 6.4, "accent")
+    d.dot(12, 16, 2.2, "dim")
+end
+ICONS.anchor = function(d)
+    d.dot(12, 5, 2.2)
+    d.thick(12, 7, 12, 20, 2.4)
+    d.band(12, 15, 5.6, 2.4, "accent")
+    d.thick(4, 13, 20, 13, 2.4, "dim")
+end
+
 
 BPUI.Icons = ICONS
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
-local function drawIcon(parent, name, size, color, zindex, alpha)
+-- Derives the secondary "Colored" hue from a single base color: a modest
+-- warm hue-rotation plus a brightness lift, so any icon gets a pleasant,
+-- harmonious two-tone treatment automatically without needing a hand-picked
+-- palette per icon. Purely grey/desaturated inputs just stay grey (no hue to
+-- rotate), which is a safe, inert fallback rather than a broken one.
+local function iconAccent(c)
+    local ok, h, s, v = pcall(function() return c:ToHSV() end)
+    if not ok then return c end
+    h = (h + 0.09) % 1
+    s = math.clamp(s * 0.9, 0, 1)
+    v = math.clamp(v * 0.82 + 0.32, 0, 1)
+    return Color3.fromHSV(h, s, v)
+end
+
+-- Derives a "dim" void/hole shade from a base color. IMPORTANT: this must
+-- shift brightness (V), not just add transparency -- a translucent copy of a
+-- color painted over an OPAQUE region of that exact same color is a visual
+-- no-op (alpha-blending C over C yields C at any alpha), which is exactly
+-- what a pupil/keyhole/hand drawn as "same hue, more transparent" collapses
+-- into when it sits on top of a same-colored solid fill underneath it. Going
+-- lighter when the base is dark and darker when the base is light guarantees
+-- real contrast against the shape it's cut into, in any theme.
+local function iconDim(c)
+    local ok, h, s, v = pcall(function() return c:ToHSV() end)
+    if not ok then return c end
+    if v > 0.5 then
+        v = v * 0.3
+    else
+        v = v + (1 - v) * 0.7
+    end
+    s = s * 0.55
+    return Color3.fromHSV(h, s, v)
+end
+
+-- Icons are drawn as small stacks of Frames on a 24-unit grid via a `d`
+-- primitive table. Every primitive takes an optional trailing `role`
+-- ("accent" | "dim" | nil/"primary"):
+--   primary (default) - the base icon color, at the requested alpha.
+--   accent            - a second hue in Colored mode; identical to primary
+--                        (same color, same alpha) in monochrome mode, so a
+--                        monochrome icon still reads as one solid silhouette.
+--   dim               - a genuinely darker/lighter shade of the primary (or
+--                        accent, when Colored) color, so it reads as a void
+--                        or emboss (a pupil, a keyhole, a clock hand) against
+--                        a solid fill in BOTH modes, in any theme.
+-- This is what lets `Colored` be a single opt-in boolean per icon instead of
+-- requiring a hand-authored palette for every glyph.
+local function drawIcon(parent, name, size, color, zindex, alpha, colored)
     local def = ICONS[name]
     if not def then return nil end
     alpha = alpha or 0
     zindex = zindex or 5
     local k = size / 24
     local t = math.max(1, 2 * k)
+    local primary = color
+    local accent = colored and iconAccent(color) or color
+    local dim = iconDim(accent)
     local holder = new("Frame", {
         Name = "Icon",
         BackgroundTransparency = 1,
@@ -728,14 +1151,36 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
         ZIndex = zindex,
         Parent = parent,
     })
+    -- Remember whether this icon was drawn in Colored mode so tintIcon can
+    -- decide, per-icon, whether "accent"-tagged frames should be preserved
+    -- (real distinct hue) or retinted like everything else (mono mode, where
+    -- accent == primary at creation time and freezing it serves no purpose).
+    holder:SetAttribute("IconColored", colored == true)
     local d = {}
-    local function seg(x1, y1, x2, y2, w)
+    local function roleColor(role)
+        if role == "accent" then return accent end
+        if role == "dim" then return dim end
+        return primary
+    end
+    local function roleAlpha(role)
+        -- A flat "+0.1" boost matches this exactly when alpha is low (normal
+        -- opaque icons), but at high base alpha (e.g. a watermark's ~0.955)
+        -- it clamps straight to 1 -- fully, invisibly transparent, not just
+        -- fainter -- which silently erases dim-tagged detail (a pupil, an
+        -- exclamation mark, a keyhole) instead of just softening it. Scaling
+        -- the boost against the *remaining* opacity headroom keeps the same
+        -- 0.1 boost at alpha=0 while guaranteeing the result never reaches a
+        -- fully-invisible 1 for any alpha < 1.
+        if role == "dim" then return alpha + (1 - alpha) * 0.1 end
+        return alpha
+    end
+    local function seg(x1, y1, x2, y2, w, role)
         local dx, dy = (x2 - x1) * k, (y2 - y1) * k
         local len = math.sqrt(dx * dx + dy * dy)
         local f = new("Frame", {
             Name = "Fill",
-            BackgroundColor3 = color,
-            BackgroundTransparency = alpha,
+            BackgroundColor3 = roleColor(role),
+            BackgroundTransparency = roleAlpha(role),
             BorderSizePixel = 0,
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0, (x1 + x2) * 0.5 * k, 0, (y1 + y2) * 0.5 * k),
@@ -745,14 +1190,15 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
             Parent = holder,
         })
         corner(f, RADIUS.pill)
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
     end
-    function d.line(x1, y1, x2, y2) seg(x1, y1, x2, y2, t) end
-    function d.thick(x1, y1, x2, y2, w) seg(x1, y1, x2, y2, w * k) end
-    function d.dot(cx, cy, r)
+    function d.line(x1, y1, x2, y2, role) seg(x1, y1, x2, y2, t, role) end
+    function d.thick(x1, y1, x2, y2, w, role) seg(x1, y1, x2, y2, w * k, role) end
+    function d.dot(cx, cy, r, role)
         local f = new("Frame", {
             Name = "Fill",
-            BackgroundColor3 = color,
-            BackgroundTransparency = alpha,
+            BackgroundColor3 = roleColor(role),
+            BackgroundTransparency = roleAlpha(role),
             BorderSizePixel = 0,
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0, cx * k, 0, cy * k),
@@ -761,8 +1207,9 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
             Parent = holder,
         })
         corner(f, RADIUS.pill)
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
     end
-    function d.ring(cx, cy, r)
+    function d.ring(cx, cy, r, role)
         local inner = math.max(0, r * k - t / 2)
         local f = new("Frame", {
             Name = "Stroke",
@@ -775,9 +1222,29 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
             Parent = holder,
         })
         corner(f, RADIUS.pill)
-        stroke(f, color, t, alpha)
+        stroke(f, roleColor(role), t, roleAlpha(role))
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
     end
-    function d.rect(x, y, w, h, rad)
+    -- Thick ring / "donut band" -- a bolder, more solid-looking alternative
+    -- to a thin d.ring, used for pictogram shapes like a bullseye or a coin.
+    function d.band(cx, cy, r, w, role)
+        local width = math.max(t, w * k)
+        local inner = math.max(0, r * k - width / 2)
+        local f = new("Frame", {
+            Name = "Stroke",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0, cx * k, 0, cy * k),
+            Size = UDim2.new(0, inner * 2, 0, inner * 2),
+            ZIndex = zindex,
+            Parent = holder,
+        })
+        corner(f, RADIUS.pill)
+        stroke(f, roleColor(role), width, roleAlpha(role))
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
+    end
+    function d.rect(x, y, w, h, rad, role)
         local f = new("Frame", {
             Name = "Stroke",
             BackgroundTransparency = 1,
@@ -788,13 +1255,14 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
             Parent = holder,
         })
         corner(f, math.max(0, rad * k - t / 2))
-        stroke(f, color, t, alpha)
+        stroke(f, roleColor(role), t, roleAlpha(role))
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
     end
-    function d.fill(x, y, w, h, rad)
+    function d.fill(x, y, w, h, rad, role)
         local f = new("Frame", {
             Name = "Fill",
-            BackgroundColor3 = color,
-            BackgroundTransparency = alpha,
+            BackgroundColor3 = roleColor(role),
+            BackgroundTransparency = roleAlpha(role),
             BorderSizePixel = 0,
             Position = UDim2.new(0, x * k, 0, y * k),
             Size = UDim2.new(0, w * k, 0, h * k),
@@ -802,6 +1270,7 @@ local function drawIcon(parent, name, size, color, zindex, alpha)
             Parent = holder,
         })
         corner(f, rad * k)
+        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
     end
     def(d)
     return holder
@@ -814,12 +1283,12 @@ local function isAssetIcon(v)
     return v:match("^%s*%d+%s*$") ~= nil
 end
 
-local function iconAny(parent, icon, size, color, zindex)
+local function iconAny(parent, icon, size, color, zindex, colored)
     if icon == nil or icon == "" then return nil, nil end
     if type(icon) == "string" then
         local key = icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")
         if ICONS[key] then
-            return drawIcon(parent, key, size, color, zindex), "draw"
+            return drawIcon(parent, key, size, color, zindex, nil, colored), "draw"
         end
     end
     if isAssetIcon(icon) then
@@ -911,16 +1380,41 @@ local function bar(parent, w, h, rot, color, zindex, anchor, posX, posY)
     return f
 end
 
+-- Re-tints a drawn icon to a single flat color (used for hover/selection
+-- state and theme rebinding). Frames tagged IconRole="accent" are only
+-- skipped when the icon was actually drawn in Colored mode (holder's
+-- IconColored attribute) -- that's the only case where "accent" is a real,
+-- visually distinct second hue worth preserving through state/theme
+-- changes. In mono mode accent was created identical to primary in the
+-- first place, so there's nothing to protect: retint it right along with
+-- everything else, or it would freeze at its original color forever after
+-- the first hover/selection tint. Frames tagged IconRole="dim" always track
+-- the new tint, but through iconDim() rather than the flat color, so a
+-- void/hole detail (a pupil, a clock hand) stays visibly cut into the shape
+-- instead of disappearing into it after the very first retint.
 local function tintIcon(holder, color)
     if not holder then return end
     if holder:IsA("ImageLabel") then holder.ImageColor3 = color return end
+    local dimColor = iconDim(color)
+    local wasColored = holder:GetAttribute("IconColored") == true
+    local function skip(inst)
+        return wasColored and inst:GetAttribute("IconRole") == "accent"
+    end
+    local function pick(inst)
+        local role = inst:GetAttribute("IconRole")
+        if role == "dim" then return dimColor end
+        return color
+    end
     for _, c in ipairs(holder:GetChildren()) do
         if c:IsA("Frame") then
-            if c.Name ~= "Stroke" then c.BackgroundColor3 = color end
-            local s = c:FindFirstChildOfClass("UIStroke")
-            if s then s.Color = color end
+            if not skip(c) then
+                local tint = pick(c)
+                if c.Name ~= "Stroke" then c.BackgroundColor3 = tint end
+                local s = c:FindFirstChildOfClass("UIStroke")
+                if s then s.Color = tint end
+            end
         elseif c:IsA("UIStroke") then
-            c.Color = color
+            if not skip(holder) then c.Color = pick(holder) end
         end
     end
     local s = holder:FindFirstChildOfClass("UIStroke")
@@ -1626,6 +2120,8 @@ function BPUI:CreateWindow(config)
         if type(sb.Orb2) == "table" then self._bg.Orb2 = Color3.fromRGB(sb.Orb2[1], sb.Orb2[2], sb.Orb2[3]) end
         if sb.Image ~= nil then self._bg.Image = sb.Image end
         if sb.ImageAlpha ~= nil then self._bg.ImageAlpha = sb.ImageAlpha end
+        if sb.WatermarkAlpha ~= nil then self._bg.WatermarkAlpha = sb.WatermarkAlpha end
+        if sb.WatermarkColored ~= nil then self._bg.WatermarkColored = sb.WatermarkColored end
     end
     self:_buildBackground()
 
@@ -1720,7 +2216,7 @@ function BPUI:CreateWindow(config)
     end
 
     if config.Icon and mark then
-        local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5)
+        local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5, config.IconColored == true)
         if kind == "image" then
             ico.Size = UDim2.new(1, useBox and -10 or -2, 1, useBox and -10 or -2)
             bind(self, ico, "ImageColor3", useBox and "AccentText" or "Text")
@@ -2329,9 +2825,10 @@ function Window:_buildBackground()
         })
         local icon = self._brandIcon
         local alpha = bg.WatermarkAlpha or 0.955
-        local named = type(icon) == "string" and ICONS[icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")]
+        local key = type(icon) == "string" and icon:lower():gsub("^lucide:", ""):gsub("^icon:", "") or nil
+        local named = key and ICONS[key]
         if named then
-            drawIcon(wm, icon:lower():gsub("^lucide:", ""):gsub("^icon:", ""), 380, theme.Text, 1, alpha)
+            drawIcon(wm, key, 380, theme.Text, 1, alpha, bg.WatermarkColored == true)
         elseif icon and isAssetIcon(icon) then
             local img = tostring(icon)
             if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
@@ -2345,7 +2842,13 @@ function Window:_buildBackground()
                 Parent = wm,
             })
         else
-            local label = icon and tostring(icon) or (self._title:sub(1, 2):upper())
+            -- Never blow an arbitrary icon string (an emoji, a typo'd name)
+            -- up to 460px: some emoji are missing from Roblox's font
+            -- entirely and would render as a giant broken glyph, and any
+            -- emoji that DOES render would be full-colour, clashing with the
+            -- monochrome faint-brand-mark look. Always fall back to a plain
+            -- letter-mark here instead, same as a window with no Icon set.
+            local label = self._title:sub(1, 2):upper()
             local tl = new("TextLabel", {
                 BackgroundTransparency = 1,
                 Text = label,
@@ -2387,6 +2890,8 @@ function Window:SetBackground(cfg)
         Watermark = self._bg.Watermark,
         Image = self._bg.Image,
         ImageAlpha = self._bg.ImageAlpha,
+        WatermarkAlpha = self._bg.WatermarkAlpha,
+        WatermarkColored = self._bg.WatermarkColored,
     }
     local function pack(c) if typeof(c) == "Color3" then return { math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5) } end end
     sb.Orb1 = pack(self._bg.Orb1)
@@ -2468,7 +2973,7 @@ local function nextOrder(w)
     return w._navOrder
 end
 
-local function navIcon(owner, parent, icon, x, color)
+local function navIcon(owner, parent, icon, x, color, colored)
     if not icon then return nil, nil, 0 end
     local box = new("Frame", {
         Name = "IconBox",
@@ -2479,7 +2984,7 @@ local function navIcon(owner, parent, icon, x, color)
         ZIndex = 5,
         Parent = parent,
     })
-    local ico, kind = iconAny(box, icon, 17, color, 6)
+    local ico, kind = iconAny(box, icon, 17, color, 6, colored)
     return ico, kind, 26
 end
 
@@ -2531,7 +3036,8 @@ local function buildTab(w, container, config, group)
 
     local inset = group and 12 or 0
     local labelX = 12 + inset
-    local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText)
+    tab._iconColored = config.Colored == true
+    local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText, tab._iconColored)
     if ico then
         tab._icon, tab._iconKind = ico, kind
         if kind == "draw" then bindIcon(tab, ico, "SubText") end
@@ -2676,7 +3182,8 @@ function Window:CreateGroup(config)
     group._header = header
 
     local labelX = 12
-    local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText)
+    group._iconColored = config.Colored == true
+    local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText, group._iconColored)
     if ico then
         group._icon, group._iconKind = ico, kind
         if kind == "draw" then bindIcon(group, ico, "SubText") end
@@ -2852,20 +3359,29 @@ function Tab:Select(instant)
     w._pageTitle.Text = self._name
     w._pageSub.Text = self._subtitle
 
+    -- The outgoing page is hidden immediately (no delayed callback, no
+    -- lingering crossfade) so it can never stay Visible at the same time as
+    -- the incoming one -- that overlap is what produced the "tangled" look
+    -- when flipping through tabs quickly.
     if previous and previous._page then
         local old = previous._page
-        if instant then
-            old.Visible = false
-        else
-            tw(old, MOTION.page, { Position = UDim2.new(0, -14, 0, 0) })
-            task.delay(0.16, function() if old and old.Parent then old.Visible = false end end)
+        old.Position = UDim2.new(0, 0, 0, 0)
+        old.Visible = false
+    end
+
+    -- Reset transparency-affecting state on every OTHER tab's page so a page
+    -- that was mid-transition when the user jumped away is never left
+    -- visible or offset the next time it's selected.
+    for _, t in ipairs(w._tabs) do
+        if t ~= self and t._page and t._page.Visible then
+            t._page.Visible = false
+            t._page.Position = UDim2.new(0, 0, 0, 0)
         end
     end
 
+    self._page.Position = UDim2.new(0, 0, 0, 0)
     self._page.Visible = true
-    if instant then
-        self._page.Position = UDim2.new(0, 0, 0, 0)
-    else
+    if not instant then
         self._page.Position = UDim2.new(0, 16, 0, 0)
         tw(self._page, MOTION.page, { Position = UDim2.new(0, 0, 0, 0) })
     end
@@ -2882,12 +3398,13 @@ function Tab:SetSubtitle(str)
     if self._window._activeTab == self then self._window._pageSub.Text = self._subtitle end
 end
 
-function Tab:SetIcon(icon)
+function Tab:SetIcon(icon, colored)
     local box = self._button:FindFirstChild("IconBox")
     if box then box:Destroy() end
     self._icon, self._iconKind = nil, nil
+    if colored ~= nil then self._iconColored = colored == true end
     local inset = self._group and 12 or 0
-    local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText)
+    local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText, self._iconColored)
     if ico then
         self._icon, self._iconKind = ico, kind
         if kind == "draw" then bindIcon(self, ico, "SubText") end
@@ -3223,7 +3740,8 @@ local function baseRow(section, config, opts)
             ZIndex = 4,
             Parent = inner,
         })
-        local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5)
+        el._iconColored = config.Colored == true
+        local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5, el._iconColored)
         if kind == "image" then bind(el, ico, "ImageColor3", "SubText")
         elseif kind == "draw" then bindIcon(el, ico, "SubText") end
         el._icon, el._iconKind, el._iconBox = ico, kind, box
@@ -3359,10 +3877,11 @@ end
 
 function Element:SetCallback(fn) self._callback = fn end
 function Element:SetTooltip(str) self._tooltip = str end
-function Element:SetIcon(icon)
+function Element:SetIcon(icon, colored)
     if not self._iconBox then return end
     if self._icon then self._icon:Destroy() end
-    local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5)
+    if colored ~= nil then self._iconColored = colored == true end
+    local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5, self._iconColored)
     if kind == "image" then bind(self, ico, "ImageColor3", "SubText")
     elseif kind == "draw" then bindIcon(self, ico, "SubText") end
     self._icon, self._iconKind = ico, kind

@@ -27,7 +27,7 @@ Near-black glass. Two soft coloured lights sit in the top corners — by default
 
 All of it is configurable from the built-in Settings tab: theme, accent, both glow colours, the watermark, and a tiled background image of your own. The user's choices persist.
 
-Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — drawn from frames in the theme's colour, so it is always monochrome, always tinted to match, and can never come back as a missing-glyph box. Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted) also work.
+Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — a bold filled pictogram (not a thin outline glyph), drawn from frames in the theme's colour so it is always crisp, always tinted to match, and can never come back as a missing-glyph box. It stays flat monochrome by default; pass `Colored = true` alongside it to opt any single icon into a two-tone accent tint instead (see **Icons** below). Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted) also work.
 
 Nothing is fetched to draw it. Every icon — the close cross, the chevrons, the checkmarks, the magnifier, the toast badges — is composed from rotated frames, and the shadows are stacked frames rather than an image. No asset can fail to load, and no glyph can come back as a missing-character box.
 
@@ -71,6 +71,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
 | `Icon` | string/number | — | Named icon, emoji or `rbxassetid`; drawn bare next to the title and used as the page watermark |
+| `IconColored` | bool | `false` | Two-tone accent color for the brand mark's named icon (see Icons) |
 | `BrandBox` | bool | `false` | Put the brand icon inside an accent-coloured rounded square |
 | `Theme` | string/table | `"Void"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
@@ -91,7 +92,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `ConfigFolder` | string | Title | Files live in `BPUI/<ConfigFolder>/` |
 | `ShowSettings` | bool | `true` | Built-in Settings tab |
 | `ShowConfig` | bool | `true` | The Save / Load / Delete section inside Settings. Turn it off when your script has its own config system |
-| `SettingsIcon` | emoji/id | — | Icon for the Settings tab |
+| `SettingsIcon` | string/id | `"sliders"` | Icon for the Settings tab |
 | `SettingsName` | string | `"Settings"` | Rename that tab |
 | `CloseBehavior` | string | `"Destroy"` | `"Hide"` makes the X hide instead |
 | `ConfirmClose` | bool | `false` | Ask before unloading |
@@ -109,36 +110,43 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 ### `Window:CreateTab(config)` → Tab
 
-Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Badge = 3 }`, or just a string. `Icon` is an emoji or an `rbxassetid`; `Badge` is a count or short text shown in a pill at the right.
+Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Colored = false, Badge = 3 }`, or just a string. `Icon` is a named icon, emoji or an `rbxassetid`; `Colored` opts a named icon into the two-tone accent look (see Icons); `Badge` is a count or short text shown in a pill at the right.
 
-Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
 
 ### `Window:CreateGroup(config)` → Group
 
-A collapsible header in the sidebar with tabs nested under it.
+A collapsible header in the sidebar with tabs nested under it. Also takes `Colored` alongside `Icon`.
 
 ```lua
-local combat = Window:CreateGroup({ Name = "Combat", Icon = "⚔️", Open = true })
-local aim = combat:CreateTab({ Name = "Aimbot", Icon = "🎯" })
-local esp = combat:CreateTab({ Name = "ESP", Icon = "👁️" })
+local combat = Window:CreateGroup({ Name = "Combat", Icon = "cpu", Open = true })
+local aim = combat:CreateTab({ Name = "Aimbot", Icon = "crosshair" })
+local esp = combat:CreateTab({ Name = "ESP", Icon = "eye" })
 ```
 
 Clicking the header folds the group with an animation and rotates its chevron. Selecting a tab inside a closed group opens it. Methods: `CreateTab(config)` · `Open()` · `Close()` · `Toggle()` · `SetOpen(bool)` · `IsOpen()` · `SetName(text)` · `Destroy()`. Search hides a group whose tabs have no matches.
 
 ### Icons
 
-Eighty-odd named icons ship inside the library, all drawn from rotated frames, rings and rounded rectangles on a 24-unit grid in the Lucide style:
+119 named icons ship inside the library — bold filled pictograms in the style of a modern emoji/glyph set, not thin Lucide-style outlines, all drawn from frames, dots, filled shapes and "donut" bands on a 24-unit grid:
 
 ```
-activity alert arrow-down arrow-left arrow-right arrow-up bell bolt book box bug chart
-check chevron-down chevron-right clock coins config cpu crosshair crown dice door egg
-esp eye filter flag folder fps gamepad gauge gear globe grid hammer heart home info
-keyboard layers list lock map minus money monitor mouse orbit paw percent pin plus power
-radar refresh repeat rocket save search send settings shield skull sliders sparkles star
-sun sword target timer tool tornado trash trending-up trophy user users wallet wrench x zap
+activity alert anchor arrow-down arrow-left arrow-right arrow-up battery bell bolt book
+bookmark box bug calendar camera chart check chevron-down chevron-right clock code coins
+compass config cpu crosshair crown database diamond dice door download droplet egg esp
+eye filter fire flag flask folder fps gamepad gauge gear gem ghost gift globe grid
+hammer heart home hourglass info key keyboard layers leaf link list lock magnet mail
+map medal minus money monitor mouse orbit palette pause paw percent phone pin play plus
+power question radar refresh repeat rocket save search send server settings shield
+skull sliders sparkles star sun sword tag target terminal thumbsup timer tool tornado
+trash trending-up trophy upload user users volume wallet wand warning wifi wrench x zap
 ```
 
-Names are case-insensitive and may be prefixed `lucide:`. `BPUI.Icons` is the table, so you can add your own: `BPUI.Icons.myicon = function(d) d.ring(12, 12, 9) d.line(6, 12, 18, 12) end` using `d.line(x1,y1,x2,y2)`, `d.thick(x1,y1,x2,y2,width)`, `d.ring(cx,cy,r)`, `d.dot(cx,cy,r)`, `d.rect(x,y,w,h,radius)`, `d.fill(x,y,w,h,radius)` on that same 24-unit grid.
+Names are case-insensitive and may be prefixed `lucide:`. `terminal`/`code`, `gear`/`settings`, `gem`/`diamond` and `warning`/`alert` are aliases for the same icon.
+
+By default every icon renders flat monochrome, tinted to match the theme (or the row's hover/selected state) exactly like before. Pass `Colored = true` next to any `Icon` — on `CreateWindow` (the brand mark), `CreateTab`, `CreateGroup`, any row's `Add*` config, or `Background = { WatermarkColored = true }` for the page watermark — to opt that one icon into a two-tone look: a hue-shifted accent color on its secondary shapes, layered over the base color. `SetIcon(icon, colored)` on a tab, group or element changes both the icon and its colored flag together at runtime. Monochrome stays the default everywhere, so nothing changes unless you ask for color.
+
+`BPUI.Icons` is the table, so you can add your own: `BPUI.Icons.myicon = function(d) d.fill(3, 3, 18, 18, 4) d.dot(12, 12, 3, "dim") end`. Every drawing call takes an optional trailing **role**: omitted/`"primary"` is the base color; `"accent"` is the secondary hue in `Colored` mode (identical to primary otherwise — use it for a part that should merge into one silhouette when uncolored); `"dim"` is always shifted for contrast against whatever it sits on, in both modes — use it for a "cut-in" void detail (a pupil, a keyhole, a clock hand) that must stay visible regardless of theme or color mode. Primitives, all on the same 24-unit grid: `d.line(x1,y1,x2,y2,role)`, `d.thick(x1,y1,x2,y2,width,role)`, `d.dot(cx,cy,r,role)`, `d.ring(cx,cy,r,role)` (thin stroke), `d.band(cx,cy,r,width,role)` (thick "donut" stroke), `d.rect(x,y,w,h,radius,role)` (outline), `d.fill(x,y,w,h,radius,role)` (filled). Draw a role-tagged "hole" or accent detail *after* the base shape it sits on top of — later calls paint over earlier ones.
 
 ### `Tab:CreateSection(name)` → Section
 
@@ -146,9 +154,9 @@ A grouped card with a spaced uppercase header. Methods: `SetTitle(text)` · `Set
 
 ### Elements
 
-Shared keys: `Name`, `Description`, `Flag` (config key — must be unique), `Callback`, `Icon` (an `rbxassetid` drawn at the left of the row, like Windows 11 Settings), `Tooltip` (shows after hovering half a second, PC only).
+Shared keys: `Name`, `Description`, `Flag` (config key — must be unique), `Callback`, `Icon` (a named icon, emoji or `rbxassetid`, drawn at the left of the row, like Windows 11 Settings), `Colored` (two-tone accent tint for a named `Icon`, see Icons), `Tooltip` (shows after hovering half a second, PC only).
 
-Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` · `SetVisible(bool)` · `SetName(text)` · `SetDescription(text)` · `SetCallback(fn)` · `SetTooltip(text)` · `SetIcon(id)` · `SetLocked(bool)` / `Lock()` / `Unlock()` · `Destroy()`. The current value is always on `.Value`.
+Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` · `SetVisible(bool)` · `SetName(text)` · `SetDescription(text)` · `SetCallback(fn)` · `SetTooltip(text)` · `SetIcon(icon, colored)` · `SetLocked(bool)` / `Lock()` / `Unlock()` · `Destroy()`. The current value is always on `.Value`.
 
 | Element | Extra config | Callback gets | `.Value` |
 | --- | --- | --- | --- |
@@ -238,6 +246,7 @@ Background = {
     OrbSize = 620, OrbOpacity = 0.26,
     Watermark = true,                      -- giant faint brand icon / initials
     WatermarkAlpha = 0.955,
+    WatermarkColored = false,              -- true tints it with the icon's two-tone accent hue instead of flat monochrome
     Image = 123456789,                     -- optional tiled texture (rbxassetid)
     ImageAlpha = 0.92, ImageTileSize = 96,
 }

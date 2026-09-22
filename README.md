@@ -23,19 +23,21 @@ That is the whole install. One file, one line.
 
 ## What it looks like
 
-Near-black glass. Two soft coloured lights sit in the top corners — by default the accent and a hue-shifted sibling — and a huge, faint version of your logo leans across the bottom-right of the page. The sidebar and every card are translucent, so that light bleeds through them. On the left: the brand mark under a glow, a search field, tabs with emoji icons and count badges, and collapsible groups with chevrons. On the right: tracked small-caps section headers with an accent tick, a page title underlined by a fading accent hairline, and one rounded card per setting. Toggles glow when on; a pulse in the footer keeps it alive. Pressing anything ripples from the point of contact; switching tabs slides the page in.
+A flat near-black panel, fully opaque, with nothing behind the page at all — no ambient glow, no giant watermark, no glass. Depth comes from an even tonal ladder instead: the sidebar is the darkest surface, the page a step above it, each row card a step above that, and every card is closed by a hairline a shade lighter again. On the left: the brand mark, a search field, tabs with real icons and count badges, and collapsible groups with chevrons. On the right: tracked small-caps section headers with an accent tick, a page title underlined by a fading accent hairline, and one rounded card per setting. The accent appears only where something is on, selected or focused. A pulse in the footer keeps it alive, pressing anything ripples from the point of contact, and switching tabs slides the page in.
 
-All of it is configurable from the built-in Settings tab: theme, accent, both glow colours, the watermark, and a tiled background image of your own. The user's choices persist.
+Motion runs on one curve — a fast start with a long, soft settle — from a 130ms hover through to a 280ms page change, so the whole interface moves as one thing rather than a collection of separate animations. The single exception is the nav indicator, which snaps with a small overshoot when you select a tab.
 
-Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — a bold filled pictogram (not a thin outline glyph), drawn from frames in the theme's colour so it is always crisp, always tinted to match, and can never come back as a missing-glyph box. It stays flat monochrome by default; pass `Colored = true` alongside it to opt any single icon into a two-tone accent tint instead (see **Icons** below). Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted) also work.
+The Settings tab lets the user change theme, accent and a tiled background image of their own, and remembers the choices.
 
-Nothing is fetched to draw it. Every icon — the close cross, the chevrons, the checkmarks, the magnifier, the toast badges — is composed from rotated frames, and the shadows are stacked frames rather than an image. No asset can fail to load, and no glyph can come back as a missing-character box.
+Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — a real [Lucide](https://lucide.dev) icon, sliced out of a spritesheet baked into the library and rendered as a tinted image, so it's a genuine icon rather than a hand-drawn approximation of one. It stays flat monochrome by default, tinted to match the theme; pass `Colored = true` alongside it to tint that one icon with the theme's accent color instead, or `IconColor = Color3.fromRGB(...)` for a fixed color of your own (see **Icons** below). Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted the same way) also work.
+
+The library ships the icon table itself — no lookup is fetched at runtime, unlike libraries that pull their icon list down over HTTP on first load. Internal chrome (the close cross, the chevrons, the checkmarks, the magnifier, the toast badges) stays exactly what it always was: composed from rotated frames, no asset involved, and shadows are stacked frames rather than an image. Named/emoji/`rbxassetid` icons render as ordinary Roblox images, the same way any UI's icon would — an unknown name falls back to rendering the text/emoji itself rather than a missing-glyph box, and a bad custom `rbxassetid` behaves like any bad asset id would anywhere else in Roblox.
 
 ---
 
 ## Why it will not throw `HttpError`
 
-The library never calls `HttpGet`, `request`, `syn.request` or anything like them. It loads no external images and no external fonts — icons are drawn from frames, fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode`, which is a local operation with no network involved.
+The library never calls `HttpGet`, `request`, `syn.request` or anything like them — the icon table (~340 names) ships embedded in the file, not fetched on load. Named icons render as ordinary `rbxassetid` images from Roblox's own asset servers, the same way any UI's icon would; fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode`, which is a local operation with no network involved.
 
 The only request in the whole setup is the `HttpGet` **you** write to fetch this file, and that is your executor's request, not the UI's.
 
@@ -70,8 +72,9 @@ Detected automatically. The window starts smaller and scales down further on sma
 | --- | --- | --- | --- |
 | `Title` | string | `"BPUI"` | Also the config folder name and the re-run cleanup key |
 | `Subtitle` | string | — | Small line under the title |
-| `Icon` | string/number | — | Named icon, emoji or `rbxassetid`; drawn bare next to the title and used as the page watermark |
-| `IconColored` | bool | `false` | Two-tone accent color for the brand mark's named icon (see Icons) |
+| `Icon` | string/number | — | Named icon, emoji or `rbxassetid`; drawn bare next to the title in the sidebar |
+| `IconColored` | bool | `false` | Tint the brand mark's named icon with the accent color instead of the theme default (see Icons) |
+| `IconColor` | Color3 | — | Fixed color for the brand mark's icon, overriding both the theme default and `IconColored` |
 | `BrandBox` | bool | `false` | Put the brand icon inside an accent-coloured rounded square |
 | `Theme` | string/table | `"Void"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
@@ -84,8 +87,8 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `FloatingText` | string | first two letters | Text inside the bubble |
 | `Resizable` | bool | PC only | Bottom-right resize grip |
 | `Search` | bool | `true` | Search field that filters every element in every tab |
-| `Transparency` | number | `0.02` | Window background transparency |
-| `Background` | table | see Background | Ambient glow, watermark, texture |
+| `Transparency` | number | `0` | Window background transparency. Opaque by default; raise it only if you also turn `Acrylic` on |
+| `Background` | table | see Background | Optional tiled texture behind the page |
 | `SectionStyle` | string | `"Caps"` | `"Caps"` for tracked uppercase headers, `"Title"` for sentence case |
 | `Acrylic` | bool | `false` | Blur the game behind the window while it is open (Windows 11 Mica feel). Off by default so gameplay stays readable |
 | `AcrylicStrength` | number | `14` | Blur radius when `Acrylic` is on |
@@ -110,13 +113,13 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 ### `Window:CreateTab(config)` → Tab
 
-Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Colored = false, Badge = 3 }`, or just a string. `Icon` is a named icon, emoji or an `rbxassetid`; `Colored` opts a named icon into the two-tone accent look (see Icons); `Badge` is a count or short text shown in a pill at the right.
+Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Colored = false, IconColor = nil, Badge = 3 }`, or just a string. `Icon` is a named icon, emoji or an `rbxassetid`; `Colored` tints a named icon with the accent color, `IconColor` pins it to a fixed color of your own (see Icons); `Badge` is a count or short text shown in a pill at the right.
 
-Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored, iconColor)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
 
 ### `Window:CreateGroup(config)` → Group
 
-A collapsible header in the sidebar with tabs nested under it. Also takes `Colored` alongside `Icon`.
+A collapsible header in the sidebar with tabs nested under it. Also takes `Colored` and `IconColor` alongside `Icon`.
 
 ```lua
 local combat = Window:CreateGroup({ Name = "Combat", Icon = "cpu", Open = true })
@@ -128,25 +131,28 @@ Clicking the header folds the group with an animation and rotates its chevron. S
 
 ### Icons
 
-119 named icons ship inside the library — bold filled pictograms in the style of a modern emoji/glyph set, not thin Lucide-style outlines, all drawn from frames, dots, filled shapes and "donut" bands on a 24-unit grid:
+~340 real icons from the [Lucide](https://lucide.dev) set (ISC license) ship inside the library, embedded as sprite-sheet coordinates — the same technique Rayfield and most other UI libraries use, except the table is baked into `BPUI.lua` itself rather than fetched over HTTP on every load. `Icon = "eye"` slices that icon out of the sheet and renders it as a tinted image. A representative slice of what's in there:
 
 ```
-activity alert anchor arrow-down arrow-left arrow-right arrow-up battery bell bolt book
-bookmark box bug calendar camera chart check chevron-down chevron-right clock code coins
-compass config cpu crosshair crown database diamond dice door download droplet egg esp
-eye filter fire flag flask folder fps gamepad gauge gear gem ghost gift globe grid
-hammer heart home hourglass info key keyboard layers leaf link list lock magnet mail
-map medal minus money monitor mouse orbit palette pause paw percent phone pin play plus
-power question radar refresh repeat rocket save search send server settings shield
-skull sliders sparkles star sun sword tag target terminal thumbsup timer tool tornado
-trash trending-up trophy upload user users volume wallet wand warning wifi wrench x zap
+activity alarm-clock anchor archive arrow-down arrow-left arrow-right arrow-up at-sign award
+banknote bell book book-open bookmark box brain bug building bus calendar camera check
+chevron-down chevron-right circle-help clipboard clock cloud code coins compass copy cpu
+crosshair crown database dices download droplet egg eye eye-off file filter flag flame
+flask-conical folder gamepad gauge ghost gift git-branch github globe grid-2x2 hammer
+heart home hourglass image info key keyboard layers leaf link list lock mail map medal
+menu monitor mouse package palette phone pin play plus power printer refresh-cw rocket
+save scan-eye search send server settings shield skull sliders sparkles star sun sword
+tag target terminal thumbs-up timer trash trending-up trophy truck upload user users
+volume wallet wand-2 wifi wrench x zap
 ```
 
-Names are case-insensitive and may be prefixed `lucide:`. `terminal`/`code`, `gear`/`settings`, `gem`/`diamond` and `warning`/`alert` are aliases for the same icon.
+That's a taste of ~340 — the full list is `BPUI.Icons` (a `name -> true` set you can `pairs()` over), or just try the [Lucide icon name](https://lucide.dev/icons) you want; if it's a real Lucide icon it's very likely in there. Names are case-insensitive and may be prefixed `lucide:`. A handful of shorter names carried over from earlier versions are kept as aliases onto their closest real icon, so old scripts keep working unchanged: `alert`/`warning` → `triangle-alert`, `chart` → `bar-chart-3`, `config` → `settings`, `gear` → `cog`, `dice` → `dices`, `door` → `door-open`, `esp` → `scan-eye`, `fire` → `flame`, `flask` → `flask-conical`, `fps` → `gauge-circle`, `grid` → `grid-2x2`, `money` → `banknote`, `paw` → `paw-print`, `question` → `circle-help`, `refresh` → `refresh-cw`, `thumbsup` → `thumbs-up`, `tool` → `wrench`. An unrecognized name falls back to rendering as literal text.
 
-By default every icon renders flat monochrome, tinted to match the theme (or the row's hover/selected state) exactly like before. Pass `Colored = true` next to any `Icon` — on `CreateWindow` (the brand mark), `CreateTab`, `CreateGroup`, any row's `Add*` config, or `Background = { WatermarkColored = true }` for the page watermark — to opt that one icon into a two-tone look: a hue-shifted accent color on its secondary shapes, layered over the base color. `SetIcon(icon, colored)` on a tab, group or element changes both the icon and its colored flag together at runtime. Monochrome stays the default everywhere, so nothing changes unless you ask for color.
+By default every icon renders flat monochrome, tinted to match the theme (or the row's hover/selected state). Pass `Colored = true` next to any `Icon` — on `CreateWindow` (the brand mark, as `IconColored`), `CreateTab`, `CreateGroup` or any row's `Add*` config — to tint that one icon with the theme's accent color instead. For a fixed color of your own, regardless of theme, hover or selection, pass `IconColor = Color3.fromRGB(...)` alongside it — it wins over both the theme default and `Colored`, and once set it stays exactly that color through every later theme change, hover or tab selection. `SetIcon(icon, colored, iconColor)` on a tab, group or element updates all three together at runtime; passing `nil` for `colored`/`iconColor` leaves that one as it was. Monochrome stays the default everywhere, so nothing changes unless you ask for color.
 
-`BPUI.Icons` is the table, so you can add your own: `BPUI.Icons.myicon = function(d) d.fill(3, 3, 18, 18, 4) d.dot(12, 12, 3, "dim") end`. Every drawing call takes an optional trailing **role**: omitted/`"primary"` is the base color; `"accent"` is the secondary hue in `Colored` mode (identical to primary otherwise — use it for a part that should merge into one silhouette when uncolored); `"dim"` is always shifted for contrast against whatever it sits on, in both modes — use it for a "cut-in" void detail (a pupil, a keyhole, a clock hand) that must stay visible regardless of theme or color mode. Primitives, all on the same 24-unit grid: `d.line(x1,y1,x2,y2,role)`, `d.thick(x1,y1,x2,y2,width,role)`, `d.dot(cx,cy,r,role)`, `d.ring(cx,cy,r,role)` (thin stroke), `d.band(cx,cy,r,width,role)` (thick "donut" stroke), `d.rect(x,y,w,h,radius,role)` (outline), `d.fill(x,y,w,h,radius,role)` (filled). Draw a role-tagged "hole" or accent detail *after* the base shape it sits on top of — later calls paint over earlier ones.
+Emoji (`Icon = "🎯"`, rendered natively in color by Roblox — though newer emoji are missing from its font) and a plain `rbxassetid` image both still work exactly as before, and both also accept `IconColor` for a tinted override.
+
+**2.8.0** replaced the drawn-pictogram icon set (119 hand-composed frame icons) with the embedded Lucide sprite sheet described above. Every old name still resolves — either directly, as a real Lucide icon, or through the alias table — so existing scripts render real icons unchanged with no code changes required. The one thing that goes away is authoring a fully custom icon by hand (the old `BPUI.Icons.myicon = function(d) ... end` drawing API); a custom icon now goes through `Icon = "rbxassetid://..."` instead.
 
 ### `Tab:CreateSection(name)` → Section
 
@@ -154,9 +160,9 @@ A grouped card with a spaced uppercase header. Methods: `SetTitle(text)` · `Set
 
 ### Elements
 
-Shared keys: `Name`, `Description`, `Flag` (config key — must be unique), `Callback`, `Icon` (a named icon, emoji or `rbxassetid`, drawn at the left of the row, like Windows 11 Settings), `Colored` (two-tone accent tint for a named `Icon`, see Icons), `Tooltip` (shows after hovering half a second, PC only).
+Shared keys: `Name`, `Description`, `Flag` (config key — must be unique), `Callback`, `Icon` (a named icon, emoji or `rbxassetid`, drawn at the left of the row, like Windows 11 Settings), `Colored` (accent tint for a named `Icon`), `IconColor` (fixed color override, see Icons), `Tooltip` (shows after hovering half a second, PC only).
 
-Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` · `SetVisible(bool)` · `SetName(text)` · `SetDescription(text)` · `SetCallback(fn)` · `SetTooltip(text)` · `SetIcon(icon, colored)` · `SetLocked(bool)` / `Lock()` / `Unlock()` · `Destroy()`. The current value is always on `.Value`.
+Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` · `SetVisible(bool)` · `SetName(text)` · `SetDescription(text)` · `SetCallback(fn)` · `SetTooltip(text)` · `SetIcon(icon, colored, iconColor)` · `SetLocked(bool)` / `Lock()` / `Unlock()` · `Destroy()`. The current value is always on `.Value`.
 
 | Element | Extra config | Callback gets | `.Value` |
 | --- | --- | --- | --- |
@@ -238,25 +244,24 @@ If a config loads before some elements exist — because your script yields, say
 
 ### Background
 
+Nothing is drawn behind the page by default. The only thing this table can add is a texture of your own:
+
 ```lua
 Background = {
-    Ambient = true,                        -- the two corner glows
-    Orb1 = Color3.fromRGB(190, 50, 130),   -- omit to follow the accent
-    Orb2 = Color3.fromRGB(110, 70, 220),   -- omit to follow a hue-shifted accent
-    OrbSize = 620, OrbOpacity = 0.26,
-    Watermark = true,                      -- giant faint brand icon / initials
-    WatermarkAlpha = 0.955,
-    WatermarkColored = false,              -- true tints it with the icon's two-tone accent hue instead of flat monochrome
-    Image = 123456789,                     -- optional tiled texture (rbxassetid)
-    ImageAlpha = 0.92, ImageTileSize = 96,
+    Image = 123456789,                     -- tiled texture (rbxassetid), omit for none
+    ImageAlpha = 0.92,                     -- 1 is invisible, 0 is solid
+    ImageTileSize = 96,
+    ImageTile = false,                     -- false crops one copy instead of tiling
 }
 ```
 
-`Window:SetBackground(partial)` changes any of these live and remembers the result; pass `Orb1 = false` to hand a glow back to the accent. The Settings tab exposes the same controls to the user.
+`Window:SetBackground(partial)` changes any of these live and remembers the result. The Settings tab exposes the same two controls to the user.
+
+The ambient corner glows and the giant page watermark were removed in 2.7.0 along with their config keys (`Ambient`, `Orb1`, `Orb2`, `Orb3`, `OrbSize`, `OrbOpacity`, `Watermark`, `WatermarkAlpha`, `WatermarkColored`). Passing any of them is harmless — they are simply ignored — but nothing will be drawn.
 
 ### Themes
 
-`Void` (default — near-black glass with an orchid accent), `Nocturne` (deep blue-black), `FluentDark` and `FluentLight` (the Windows 11 system palettes), `Obsidian`, `Midnight`, `Nord`, `Crimson`.
+`Void` (default — flat near-black with an orchid accent), `Nocturne` (deep blue-black), `FluentDark` and `FluentLight` (the Windows 11 system palettes), `Obsidian`, `Midnight`, `Nord`, `Crimson`.
 
 ```lua
 BPUI:SetTheme("FluentLight")

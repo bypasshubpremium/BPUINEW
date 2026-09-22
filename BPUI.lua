@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.6.0",
+    Version = "2.8.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -114,10 +114,18 @@ local FONT = {
 
 local RADIUS = { xs = 3, sm = 6, md = 8, lg = 10, xl = 12, pill = 999 }
 
+-- One easing family for everything: Quint Out moves fast at the start and
+-- settles over a long, soft tail, which is what reads as "fluid" rather than
+-- "animated". Hover and press used to be Quad and release used to overshoot
+-- with Back, so the three smallest, most-repeated interactions in the whole
+-- UI each moved on a different curve. They are one system now. `spring` is
+-- the single deliberate exception: a small overshoot reserved for the nav
+-- indicator, where a snap is what says "this tab is selected now".
 local MOTION = {
-    hover    = TweenInfo.new(0.10, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
-    press    = TweenInfo.new(0.06, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out),
-    release  = TweenInfo.new(0.22, Enum.EasingStyle.Back,  Enum.EasingDirection.Out),
+    hover    = TweenInfo.new(0.13, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    press    = TweenInfo.new(0.07, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    release  = TweenInfo.new(0.26, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+    spring   = TweenInfo.new(0.30, Enum.EasingStyle.Back,  Enum.EasingDirection.Out),
     quick    = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
     standard = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
     page     = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -127,31 +135,47 @@ local MOTION = {
 
 local function rgb(r, g, b) return Color3.fromRGB(r, g, b) end
 
+-- Void is opaque by design. It used to be glass, which only worked because
+-- two big coloured glows sat behind it; with those gone, translucency would
+-- just let the game bleed through and read as noise. Depth now comes from an
+-- even tonal ladder -- sidebar (darkest) -> page -> row card -> inner control
+-- -- with each step small enough to feel calm and large enough to separate.
 BPUI.Themes.Void = {
     Name = "Void",
-    Window       = rgb(10, 10, 13),
-    Sidebar      = rgb(15, 15, 20),
-    TitleBar     = rgb(10, 10, 13),
-    Surface      = rgb(21, 21, 27),
-    SurfaceHover = rgb(28, 28, 36),
-    Element      = rgb(29, 29, 37),
-    ElementHover = rgb(38, 38, 48),
-    Stroke       = rgb(36, 36, 46),
-    StrokeSoft   = rgb(27, 27, 35),
-    Text         = rgb(242, 242, 247),
-    SubText      = rgb(164, 166, 182),
-    Muted        = rgb(106, 108, 124),
+    Window       = rgb(15, 15, 19),
+    Sidebar      = rgb(11, 11, 14),
+    TitleBar     = rgb(15, 15, 19),
+    Surface      = rgb(21, 21, 26),
+    SurfaceHover = rgb(25, 25, 31),
+    -- Element must stay clearly above SurfaceHover, not just above Surface:
+    -- hovering the empty part of a row raises the card to SurfaceHover, and
+    -- if the two met there, every control would dissolve into its own row
+    -- the moment the cursor approached it.
+    Element      = rgb(33, 33, 40),
+    ElementHover = rgb(40, 40, 48),
+    -- StrokeSoft sits ~9 above the card fill so a row reads as a contained
+    -- object rather than a lighter smudge; Stroke stays clearly above that
+    -- again so the window's own edge and the sidebar divider remain the
+    -- strongest lines on screen. Controls are defined by their fill instead,
+    -- which is why StrokeSoft may sit below Element.
+    Stroke       = rgb(44, 44, 55),
+    StrokeSoft   = rgb(30, 30, 37),
+    Text         = rgb(244, 244, 248),
+    SubText      = rgb(158, 160, 174),
+    -- Muted carries the footer version line and every placeholder, both at
+    -- small sizes -- kept light enough to clear 4.5:1 on the sidebar.
+    Muted        = rgb(122, 124, 140),
     Accent       = rgb(214, 92, 196),
     AccentText   = rgb(255, 255, 255),
     Success      = rgb(84, 214, 150),
     Warning      = rgb(252, 196, 92),
     Danger       = rgb(255, 106, 122),
-    Track        = rgb(52, 52, 66),
+    Track        = rgb(50, 50, 62),
     KnobOn       = rgb(255, 255, 255),
     KnobOff      = rgb(170, 172, 190),
-    SidebarAlpha = 0.55,
-    SurfaceAlpha = 0.28,
-    ElementAlpha = 0.15,
+    SidebarAlpha = 0,
+    SurfaceAlpha = 0,
+    ElementAlpha = 0,
     Dark         = true,
 }
 
@@ -531,749 +555,414 @@ local function autoSlot(parent, opts)
     return slot, card, conn
 end
 
-local function hueShift(c, deg)
-    local h, s, v = c:ToHSV()
-    h = (h + deg / 360) % 1
-    return Color3.fromHSV(h, s, v)
+-- Lucide icon sprites --------------------------------------------------
+-- ~330 commonly used icons from the Lucide set (ISC license), embedded
+-- directly as {assetId, x, y} sprite-sheet coordinates on a shared 48x48
+-- grid (spread across a handful of separately-uploaded sheet assets, one
+-- per assetId). No runtime network fetch is made to load this table --
+-- unlike Rayfield, which pulls its icon table down on every load -- it
+-- ships inside the library file itself. Every coordinate below
+-- was read byte-exact out of the source sprite-sheet data with a Lua
+-- interpreter, never hand-transcribed, since a wrong coordinate here is a
+-- silent failure (it renders a different, real-looking icon, not an
+-- error) with no way to catch it after the fact.
+local ICON_SPRITE_SIZE = 48
+local ICON_SPRITES = {
+["activity"]={16898612629,514,771},
+["alarm-clock"]={16898612629,257,820},
+["anchor"]={16898612629,306,869},
+["archive"]={16898612629,918,49},
+["arrow-down"]={16898612629,967,49},
+["arrow-down-right"]={16898612629,820,661},
+["arrow-left"]={16898612629,98,918},
+["arrow-right"]={16898612629,453,820},
+["arrow-up"]={16898612629,967,355},
+["arrow-up-right"]={16898612629,918,147},
+["at-sign"]={16898612629,453,869},
+["award"]={16898612629,918,661},
+["axe"]={16898612629,869,710},
+["banknote"]={16898612629,453,967},
+["bar-chart-3"]={16898612629,918,759},
+["battery"]={16898612629,967,857},
+["battery-charging"]={16898612629,771,955},
+["battery-low"]={16898612629,918,857},
+["bell"]={16898612819,820,257},
+["bell-off"]={16898612819,771,49},
+["bell-ring"]={16898612819,0,820},
+["bike"]={16898612819,771,563},
+["bird"]={16898612819,869,0},
+["bluetooth"]={16898612819,771,355},
+["bolt"]={16898612819,306,820},
+["bomb"]={16898612819,257,869},
+["book"]={16898612819,820,612},
+["book-open"]={16898612819,820,355},
+["bookmark"]={16898612819,514,918},
+["box"]={16898612819,771,196},
+["brain"]={16898612819,967,257},
+["brush"]={16898612819,404,820},
+["bug"]={16898612819,257,967},
+["building"]={16898612819,918,563},
+["building-2"]={16898612819,967,514},
+["bus"]={16898612819,820,661},
+["calendar"]={16898612819,355,918},
+["calendar-check"]={16898612819,967,49},
+["calendar-days"]={16898612819,869,147},
+["camera"]={16898612819,967,563},
+["candy"]={16898612819,771,759},
+["car"]={16898612819,918,147},
+["check"]={16898612819,710,869},
+["check-circle"]={16898612819,869,710},
+["chevron-down"]={16898612819,196,918},
+["chevron-left"]={16898612819,404,967},
+["chevron-right"]={16898612819,869,759},
+["chevron-up"]={16898612819,710,918},
+["church"]={16898612819,771,906},
+["circle"]={16898613044,771,355},
+["circle-alert"]={16898612819,918,808},
+["circle-dollar-sign"]={16898613044,257,771},
+["circle-gauge"]={16898613044,0,820},
+["circle-help"]={16898613044,820,257},
+["clipboard"]={16898613044,49,869},
+["clipboard-check"]={16898613044,869,514},
+["clock"]={16898613044,771,661},
+["cloud"]={16898613044,918,306},
+["cloud-download"]={16898613044,612,820},
+["cloud-lightning"]={16898613044,918,49},
+["cloud-rain"]={16898613044,147,820},
+["cloud-upload"]={16898613044,967,257},
+["clover"]={16898613044,820,404},
+["code"]={16898613044,355,869},
+["cog"]={16898613044,918,563},
+["coins"]={16898613044,869,612},
+["columns"]={16898613044,661,820},
+["compass"]={16898613044,514,967},
+["contact"]={16898613044,49,967},
+["copy"]={16898613044,918,612},
+["cpu"]={16898613044,196,869},
+["credit-card"]={16898613044,98,967},
+["crop"]={16898613044,918,404},
+["crosshair"]={16898613044,453,869},
+["crown"]={16898613044,404,918},
+["database"]={16898613044,710,869},
+["diamond"]={16898613044,196,918},
+["dices"]={16898613044,918,710},
+["disc"]={16898613044,661,967},
+["dna"]={16898613044,967,710},
+["dog"]={16898613044,869,808},
+["door-open"]={16898613044,967,759},
+["download"]={16898613044,820,906},
+["droplet"]={16898613044,820,955},
+["droplets"]={16898613044,967,857},
+["ear"]={16898613044,967,955},
+["egg"]={16898613353,514,771},
+["eraser"]={16898613353,820,257},
+["expand"]={16898613353,306,771},
+["external-link"]={16898613353,257,820},
+["eye"]={16898613353,771,563},
+["eye-off"]={16898613353,820,514},
+["factory"]={16898613353,514,820},
+["fast-forward"]={16898613353,820,49},
+["feather"]={16898613353,771,98},
+["file"]={16898613353,820,661},
+["file-check"]={16898613353,563,820},
+["file-plus"]={16898613353,918,49},
+["file-text"]={16898613353,869,355},
+["files"]={16898613353,771,710},
+["film"]={16898613353,710,771},
+["filter"]={16898613353,612,869},
+["fingerprint"]={16898613353,563,918},
+["fish"]={16898613353,869,147},
+["flag"]={16898613353,98,918},
+["flame"]={16898613353,967,306},
+["flashlight"]={16898613353,869,404},
+["flask-conical"]={16898613353,453,820},
+["flower"]={16898613353,820,710},
+["flower-2"]={16898613353,869,661},
+["folder"]={16898613353,404,967},
+["folder-open"]={16898613353,820,759},
+["folder-plus"]={16898613353,661,918},
+["footprints"]={16898613353,918,710},
+["frown"]={16898613353,967,196},
+["fuel"]={16898613353,196,967},
+["gamepad"]={16898613353,967,759},
+["gamepad-2"]={16898613353,710,967},
+["gauge"]={16898613353,771,955},
+["gauge-circle"]={16898613353,820,906},
+["gem"]={16898613353,918,857},
+["ghost"]={16898613353,869,906},
+["gift"]={16898613353,820,955},
+["git-branch"]={16898613353,918,906},
+["git-commit-horizontal"]={16898613353,869,955},
+["git-merge"]={16898613509,771,257},
+["github"]={16898613509,0,820},
+["glasses"]={16898613509,306,771},
+["globe"]={16898613509,771,563},
+["grab"]={16898613509,514,820},
+["grid-2x2"]={16898613509,771,98},
+["hammer"]={16898613509,306,820},
+["hand"]={16898613509,563,820},
+["hand-metal"]={16898613509,771,612},
+["hard-drive"]={16898613509,820,98},
+["hash"]={16898613509,147,771},
+["headphones"]={16898613509,306,869},
+["heart"]={16898613509,661,771},
+["helping-hand"]={16898613509,514,918},
+["hexagon"]={16898613509,967,0},
+["highlighter"]={16898613509,918,49},
+["history"]={16898613509,869,98},
+["home"]={16898613509,820,147},
+["hourglass"]={16898613509,49,918},
+["image"]={16898613509,306,918},
+["images"]={16898613509,257,967},
+["inbox"]={16898613509,918,563},
+["info"]={16898613509,612,869},
+["key"]={16898613509,869,404},
+["key-round"]={16898613509,967,306},
+["keyboard"]={16898613509,453,820},
+["landmark"]={16898613509,771,759},
+["laptop"]={16898613509,563,967},
+["laugh"]={16898613509,869,196},
+["layers"]={16898613509,98,967},
+["layout"]={16898613509,967,612},
+["layout-dashboard"]={16898613509,967,355},
+["layout-grid"]={16898613509,918,404},
+["layout-list"]={16898613509,869,453},
+["leaf"]={16898613509,918,661},
+["library"]={16898613509,710,869},
+["lightbulb"]={16898613509,918,196},
+["line-chart"]={16898613509,196,918},
+["link"]={16898613509,918,453},
+["link-2"]={16898613509,967,404},
+["list"]={16898613509,869,808},
+["lock"]={16898613509,918,857},
+["magnet"]={16898613509,967,906},
+["mail"]={16898613613,820,0},
+["map"]={16898613613,306,771},
+["map-pin"]={16898613613,820,257},
+["maximize"]={16898613613,771,563},
+["medal"]={16898613613,563,771},
+["meh"]={16898613613,820,49},
+["menu"]={16898613613,49,820},
+["mic"]={16898613613,820,612},
+["mic-off"]={16898613613,918,514},
+["minimize"]={16898613613,918,49},
+["minus"]={16898613613,771,196},
+["minus-circle"]={16898613613,869,98},
+["monitor"]={16898613613,404,820},
+["mountain"]={16898613613,869,612},
+["mouse"]={16898613613,563,918},
+["move"]={16898613613,453,820},
+["music"]={16898613613,967,563},
+["navigation"]={16898613613,771,759},
+["navigation-2"]={16898613613,869,661},
+["newspaper"]={16898613613,661,869},
+["notebook"]={16898613613,869,196},
+["octagon-alert"]={16898613613,918,404},
+["orbit"]={16898613613,967,612},
+["package"]={16898613613,918,196},
+["package-check"]={16898613613,820,759},
+["paintbrush"]={16898613613,918,453},
+["palette"]={16898613613,453,918},
+["palmtree"]={16898613613,404,967},
+["panel-left"]={16898613613,967,453},
+["paperclip"]={16898613613,918,857},
+["pause"]={16898613699,0,771},
+["paw-print"]={16898613699,771,257},
+["pen"]={16898613699,771,49},
+["pencil"]={16898613699,820,257},
+["percent"]={16898613699,771,563},
+["person-standing"]={16898613699,563,771},
+["phone"]={16898613699,0,869},
+["phone-call"]={16898613699,514,820},
+["piggy-bank"]={16898613699,820,563},
+["pin"]={16898613699,918,0},
+["pipette"]={16898613699,869,49},
+["plane"]={16898613699,98,820},
+["play"]={16898613699,918,257},
+["plug"]={16898613699,404,771},
+["plug-2"]={16898613699,869,306},
+["plus"]={16898613699,257,918},
+["plus-circle"]={16898613699,355,820},
+["power"]={16898613699,820,147},
+["power-off"]={16898613699,918,49},
+["printer"]={16898613699,196,771},
+["puzzle"]={16898613699,49,918},
+["rabbit"]={16898613699,869,355},
+["radar"]={16898613699,820,404},
+["radio"]={16898613699,306,918},
+["receipt"]={16898613699,869,147},
+["refresh-ccw"]={16898613699,820,453},
+["refresh-cw"]={16898613699,404,869},
+["repeat"]={16898613699,820,710},
+["rewind"]={16898613699,563,967},
+["rocket"]={16898613699,918,147},
+["rotate-ccw"]={16898613699,967,355},
+["rotate-cw"]={16898613699,869,453},
+["route"]={16898613699,404,918},
+["ruler"]={16898613699,710,869},
+["sandwich"]={16898613699,918,196},
+["save"]={16898613699,918,453},
+["scale"]={16898613699,404,967},
+["scan"]={16898613699,967,196},
+["scan-eye"]={16898613699,869,759},
+["scan-face"]={16898613699,820,808},
+["school"]={16898613699,453,967},
+["scissors"]={16898613699,820,857},
+["screen-share"]={16898613699,710,967},
+["search"]={16898613699,918,857},
+["send"]={16898613699,967,857},
+["server"]={16898613777,771,0},
+["server-crash"]={16898613699,918,955},
+["server-off"]={16898613699,967,955},
+["settings"]={16898613777,771,257},
+["settings-2"]={16898613777,0,771},
+["share"]={16898613777,514,771},
+["share-2"]={16898613777,771,514},
+["shield"]={16898613777,869,0},
+["shield-alert"]={16898613777,49,771},
+["shield-check"]={16898613777,820,257},
+["shield-off"]={16898613777,820,514},
+["ship"]={16898613777,771,98},
+["shopping-bag"]={16898613777,49,820},
+["shopping-cart"]={16898613777,869,257},
+["shuffle"]={16898613777,257,869},
+["signal"]={16898613777,918,0},
+["siren"]={16898613777,771,147},
+["skip-back"]={16898613777,147,771},
+["skip-forward"]={16898613777,98,820},
+["skull"]={16898613777,49,869},
+["sliders"]={16898613777,404,771},
+["sliders-horizontal"]={16898613777,820,355},
+["smartphone"]={16898613777,257,918},
+["smile"]={16898613777,869,563},
+["snowflake"]={16898613777,771,661},
+["sparkle"]={16898613777,967,0},
+["sparkles"]={16898613777,918,49},
+["speaker"]={16898613777,869,98},
+["sprout"]={16898613777,918,306},
+["square"]={16898613777,869,710},
+["square-pen"]={16898613777,710,820},
+["squirrel"]={16898613777,771,808},
+["stamp"]={16898613777,710,869},
+["star"]={16898613777,967,147},
+["sticky-note"]={16898613777,918,453},
+["stop-circle"]={16898613777,453,918},
+["store"]={16898613777,404,967},
+["sun"]={16898613777,967,453},
+["sun-moon"]={16898613777,967,196},
+["sword"]={16898613777,710,967},
+["swords"]={16898613777,967,759},
+["syringe"]={16898613777,918,808},
+["tablet"]={16898613777,918,906},
+["tag"]={16898613777,967,906},
+["tags"]={16898613777,918,955},
+["target"]={16898613869,514,771},
+["tent"]={16898613869,49,771},
+["terminal"]={16898613869,820,257},
+["thermometer"]={16898613869,869,257},
+["thumbs-down"]={16898613869,820,306},
+["thumbs-up"]={16898613869,771,355},
+["timer"]={16898613869,918,0},
+["tornado"]={16898613869,771,147},
+["train-front"]={16898613869,404,771},
+["trash"]={16898613869,918,514},
+["trash-2"]={16898613869,257,918},
+["tree-pine"]={16898613869,771,661},
+["trending-down"]={16898613869,563,869},
+["trending-up"]={16898613869,514,918},
+["triangle"]={16898613869,869,98},
+["triangle-alert"]={16898613869,967,0},
+["trophy"]={16898613869,820,147},
+["truck"]={16898613869,771,196},
+["tv"]={16898613869,98,869},
+["umbrella"]={16898613869,869,355},
+["unlock"]={16898613869,771,710},
+["upload"]={16898613869,612,869},
+["usb"]={16898613869,563,918},
+["user"]={16898613869,661,869},
+["user-check"]={16898613869,918,98},
+["user-minus"]={16898613869,49,967},
+["user-plus"]={16898613869,918,355},
+["user-x"]={16898613869,710,820},
+["users"]={16898613869,967,98},
+["utensils"]={16898613869,869,196},
+["video"]={16898613869,355,967},
+["video-off"]={16898613869,404,918},
+["volume"]={16898613869,661,918},
+["volume-2"]={16898613869,771,808},
+["volume-x"]={16898613869,710,869},
+["wallet"]={16898613869,147,967},
+["wand"]={16898613869,404,967},
+["wand-2"]={16898613869,918,453},
+["warehouse"]={16898613869,967,661},
+["watch"]={16898613869,869,759},
+["waves"]={16898613869,820,808},
+["wifi"]={16898613869,869,808},
+["wifi-off"]={16898613869,918,759},
+["wind"]={16898613869,820,857},
+["wrench"]={16898613869,820,906},
+["x"]={16898613869,869,906},
+["x-circle"]={16898613869,771,955},
+["zap"]={16898613869,918,906},
+["zap-off"]={16898613869,967,857},
+}
+
+-- Names carried over from the old drawn-icon set (or otherwise convenient)
+-- that aren't their own Lucide key, mapped onto the closest real icon. Kept
+-- separate from ICON_SPRITES so that table stays pure, verified source data.
+local ICON_ALIASES = {
+    alert = "triangle-alert",
+    chart = "bar-chart-3",
+    config = "settings",
+    dice = "dices",
+    door = "door-open",
+    esp = "scan-eye",
+    fire = "flame",
+    flask = "flask-conical",
+    fps = "gauge-circle",
+    gear = "cog",
+    grid = "grid-2x2",
+    money = "banknote",
+    paw = "paw-print",
+    question = "circle-help",
+    refresh = "refresh-cw",
+    thumbsup = "thumbs-up",
+    tool = "wrench",
+    warning = "triangle-alert",
+}
+
+local function spriteFor(name)
+    return ICON_SPRITES[name] or ICON_SPRITES[ICON_ALIASES[name]]
 end
 
-local function orb(parent, color, size, centerOpacity, px, py, zindex)
-    local holder = new("Frame", {
-        Name = "Orb",
-        BackgroundTransparency = 1,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(px, 0, py, 0),
-        Size = UDim2.new(0, size, 0, size),
-        ZIndex = zindex or 1,
-        Parent = parent,
-    })
-    local layers = 12
-    local per = (1 - math.clamp(centerOpacity or 0.28, 0.02, 0.9)) ^ (1 / layers)
-    for i = 1, layers do
-        local f = (i - 1) / (layers - 1)
-        local s = size * (1 - f * 0.78)
-        local l = new("Frame", {
-            Name = "L",
-            BackgroundColor3 = color,
-            BackgroundTransparency = per,
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, s, 0, s),
-            ZIndex = zindex or 1,
-            Parent = holder,
-        })
-        corner(l, RADIUS.pill)
-    end
-    return holder
-end
-
-local function tintOrb(holder, color)
-    for _, l in ipairs(holder:GetChildren()) do
-        if l:IsA("Frame") then l.BackgroundColor3 = color end
-    end
-end
-
+-- A flat membership/enumeration table shaped like the old ICONS table (name
+-- -> truthy) so `if ICONS[key] then` lookups and the public `BPUI.Icons`
+-- (exposed below, mainly for introspection/tests now) still work the same
+-- way. It no longer carries drawing functions -- authoring a custom icon by
+-- hand is gone along with the drawn pictogram system; a name outside this
+-- set still works fine via `Icon = "rbxassetid://..."` or an emoji string.
 local ICONS = {}
-
-local function rays(d, cx, cy, r1, r2, n, role, w)
-    for i = 0, n - 1 do
-        local a = i * (2 * math.pi / n)
-        d.thick(cx + r1 * math.cos(a), cy + r1 * math.sin(a), cx + r2 * math.cos(a), cy + r2 * math.sin(a), w or 2, role)
-    end
-end
-
-ICONS.home = function(d)
-    d.thick(3, 11.5, 12, 3.8, 3.6) d.thick(12, 3.8, 21, 11.5, 3.6)
-    d.fill(5, 10.5, 14, 10.5, 2.2)
-    d.fill(9.7, 14.4, 4.6, 6.6, 1.3, "dim")
-end
-ICONS.settings = function(d)
-    d.band(12, 12, 7.6, 3.4)
-    for i = 0, 7 do
-        local a = i * (math.pi / 4)
-        d.dot(12 + 9.1 * math.cos(a), 12 + 9.1 * math.sin(a), 1.55)
-    end
-    d.dot(12, 12, 2.4, "accent")
-end
-ICONS.sliders = function(d)
-    d.thick(3, 6, 21, 6, 2.2) d.thick(3, 12, 21, 12, 2.2) d.thick(3, 18, 21, 18, 2.2)
-    d.dot(15, 6, 2.3, "accent") d.dot(8, 12, 2.3, "accent") d.dot(17, 18, 2.3, "accent")
-end
-ICONS.eye = function(d)
-    d.fill(2, 7.2, 20, 9.6, 4.8)
-    d.dot(12, 12, 3.4, "dim")
-end
-ICONS.zap = function(d)
-    d.thick(13, 2, 4, 13, 4.4)
-    d.thick(4, 13, 12, 13, 4.4)
-    d.thick(12, 13, 10.5, 22, 4.4, "accent")
-    d.thick(10.5, 22, 20, 11, 4.4, "accent")
-    d.thick(20, 11, 12, 11, 4.4)
-    d.thick(12, 11, 13, 2, 4.4)
-end
-ICONS.bolt = ICONS.zap
-ICONS.target = function(d)
-    d.band(12, 12, 9, 2.6)
-    d.band(12, 12, 5.2, 2.6, "dim")
-    d.dot(12, 12, 1.8, "accent")
-end
-ICONS.crosshair = function(d)
-    d.band(12, 12, 7.6, 2)
-    d.thick(12, 1.5, 12, 5.6, 2.2) d.thick(12, 18.4, 12, 22.5, 2.2)
-    d.thick(1.5, 12, 5.6, 12, 2.2) d.thick(18.4, 12, 22.5, 12, 2.2)
-    d.dot(12, 12, 1.5, "accent")
-end
-ICONS.shield = function(d)
-    d.fill(4.4, 2.6, 15.2, 18.4, 6.5)
-    d.thick(8, 12.2, 10.8, 15, 2.6, "dim")
-    d.thick(10.8, 15, 16, 8.6, 2.6, "dim")
-end
-ICONS.user = function(d)
-    d.dot(12, 7.6, 4.2)
-    d.fill(4.2, 14.6, 15.6, 8.6, 4.3)
-end
-ICONS.users = function(d)
-    d.dot(8.6, 7.8, 3.4)
-    d.dot(16.2, 8.6, 2.9, "accent")
-    d.fill(2, 14.8, 13.4, 7.8, 3.9)
-    d.fill(13.6, 15.2, 8.4, 6.8, 3.4, "accent")
-end
-ICONS.box = function(d)
-    d.fill(3, 3, 18, 18, 3)
-    d.thick(3, 9, 21, 9, 1.6, "dim")
-    d.thick(12, 9, 12, 21, 1.6, "dim")
-end
-ICONS.search = function(d)
-    d.band(10.2, 10.2, 6.2, 2.8)
-    d.thick(14.8, 14.8, 20.5, 20.5, 3)
-end
-ICONS.grid = function(d)
-    d.fill(3, 3, 7.8, 7.8, 2) d.fill(13.2, 3, 7.8, 7.8, 2, "accent")
-    d.fill(3, 13.2, 7.8, 7.8, 2, "accent") d.fill(13.2, 13.2, 7.8, 7.8, 2)
-end
-ICONS.list = function(d)
-    d.thick(8, 6, 21, 6, 2.6) d.thick(8, 12, 21, 12, 2.6) d.thick(8, 18, 21, 18, 2.6)
-    d.dot(4, 6, 1.7, "accent") d.dot(4, 12, 1.7, "accent") d.dot(4, 18, 1.7, "accent")
-end
-ICONS.plus = function(d) d.thick(12, 4, 12, 20, 3.4) d.thick(4, 12, 20, 12, 3.4) end
-ICONS.minus = function(d) d.thick(4, 12, 20, 12, 3.4) end
-ICONS.check = function(d) d.thick(4.2, 12.6, 9.6, 18, 3.4) d.thick(9.6, 18, 19.8, 6.4, 3.4) end
-ICONS.x = function(d) d.thick(5.2, 5.2, 18.8, 18.8, 3.2) d.thick(18.8, 5.2, 5.2, 18.8, 3.2) end
-ICONS["arrow-right"] = function(d) d.thick(4, 12, 19, 12, 3) d.thick(12.5, 5.5, 19, 12, 3) d.thick(12.5, 18.5, 19, 12, 3) end
-ICONS["arrow-left"] = function(d) d.thick(20, 12, 5, 12, 3) d.thick(11.5, 5.5, 5, 12, 3) d.thick(11.5, 18.5, 5, 12, 3) end
-ICONS["arrow-up"] = function(d) d.thick(12, 20, 12, 5, 3) d.thick(5.5, 11.5, 12, 5, 3) d.thick(18.5, 11.5, 12, 5, 3) end
-ICONS["arrow-down"] = function(d) d.thick(12, 4, 12, 19, 3) d.thick(5.5, 12.5, 12, 19, 3) d.thick(18.5, 12.5, 12, 19, 3) end
-ICONS["chevron-right"] = function(d) d.thick(8.5, 4.5, 16, 12, 3) d.thick(16, 12, 8.5, 19.5, 3) end
-ICONS["chevron-down"] = function(d) d.thick(4.5, 8.5, 12, 16, 3) d.thick(12, 16, 19.5, 8.5, 3) end
-ICONS.folder = function(d)
-    -- Body drawn first, tab (accent) second: the tab genuinely overlaps the
-    -- body's top-left corner, so it must be parented last to stay on top
-    -- and stay visible in Colored mode instead of being clipped by the body.
-    d.fill(2.2, 6.4, 19.6, 13.6, 2.6)
-    d.fill(2.2, 4, 8.6, 3.6, 1.6, "accent")
-end
-ICONS.save = function(d)
-    d.fill(3, 3, 18, 18, 3)
-    d.fill(7.6, 3, 8.8, 5.4, 1, "dim")
-    d.fill(6.8, 13.6, 10.4, 7.4, 1.4, "dim")
-end
-ICONS.globe = function(d)
-    d.dot(12, 12, 9)
-    d.thick(3, 12, 21, 12, 1.6, "dim")
-    d.fill(8.4, 3, 7.2, 18, 3.6, "dim")
-end
-ICONS.lock = function(d)
-    d.band(12, 8.4, 4.4, 2.2)
-    d.fill(4.2, 10.4, 15.6, 11.4, 3)
-    d.dot(12, 15.6, 1.5, "dim")
-end
-ICONS.trash = function(d)
-    d.fill(5.6, 7.4, 12.8, 14, 2.4)
-    d.thick(3, 6.6, 21, 6.6, 2.4)
-    d.thick(9.4, 3.4, 14.6, 3.4, 2.4)
-    d.thick(9.6, 11, 9.6, 17, 1.6, "dim") d.thick(14.4, 11, 14.4, 17, 1.6, "dim")
-end
-ICONS.bell = function(d)
-    d.fill(6, 3, 12, 14, 6)
-    d.thick(3.5, 17.5, 20.5, 17.5, 2.4)
-    d.dot(12, 20.6, 2, "accent")
-end
-ICONS.flag = function(d)
-    d.thick(5, 3, 5, 21, 2.6)
-    d.fill(5, 3.6, 14.4, 10, 1.6, "accent")
-end
-ICONS.refresh = function(d)
-    d.band(12, 12, 8, 2.6)
-    d.thick(20, 4, 20, 9, 2.6, "accent") d.thick(20, 9, 15, 9, 2.6, "accent")
-end
-ICONS.egg = function(d)
-    d.fill(5.4, 2.4, 13.2, 19.2, 6.6)
-    d.dot(9.4, 9, 1.1, "dim") d.dot(14.2, 12.4, 0.95, "dim") d.dot(10.6, 15, 0.85, "dim")
-end
-ICONS.cpu = function(d)
-    d.fill(5, 5, 14, 14, 2.4)
-    d.fill(9, 9, 6, 6, 1, "dim")
-    d.thick(1.6, 9, 5, 9, 1.6) d.thick(1.6, 15, 5, 15, 1.6)
-    d.thick(19, 9, 22.4, 9, 1.6) d.thick(19, 15, 22.4, 15, 1.6)
-    d.thick(9, 1.6, 9, 5, 1.6) d.thick(15, 1.6, 15, 5, 1.6)
-    d.thick(9, 19, 9, 22.4, 1.6) d.thick(15, 19, 15, 22.4, 1.6)
-end
-ICONS.monitor = function(d)
-    d.fill(2.2, 3.6, 19.6, 13.4, 2.2)
-    d.fill(4.4, 5.6, 15.2, 9.4, 1.2, "dim")
-    d.thick(12, 17, 12, 21, 2.2) d.thick(7.5, 21, 16.5, 21, 2.2)
-end
-ICONS.gamepad = function(d)
-    d.fill(2, 7, 20, 11, 5.5)
-    d.thick(6.5, 12.2, 10.5, 12.2, 2, "dim") d.thick(8.5, 10.2, 8.5, 14.2, 2, "dim")
-    d.dot(15.6, 10.6, 1.4, "accent") d.dot(17.6, 13, 1.4, "accent")
-end
-ICONS.coins = function(d)
-    d.dot(9, 10, 6.2)
-    d.dot(15, 14, 6.2, "accent")
-end
-ICONS.layers = function(d)
-    d.fill(4, 3, 16, 5, 1.8) d.fill(4, 9.5, 16, 5, 1.8, "accent") d.fill(4, 16, 16, 5, 1.8)
-end
-ICONS.radar = function(d)
-    d.band(12, 12, 9.4, 1.8, "dim")
-    d.band(12, 12, 5.8, 1.8, "dim")
-    d.dot(12, 12, 1.8)
-    d.dot(16.6, 7.6, 1.6, "accent")
-end
-ICONS.activity = function(d)
-    d.thick(3, 12, 7, 12, 2.6) d.thick(7, 12, 10, 4.4, 2.6)
-    d.thick(10, 4.4, 14, 19.6, 2.6, "accent") d.thick(14, 19.6, 17, 12, 2.6)
-    d.thick(17, 12, 21, 12, 2.6)
-end
-ICONS.clock = function(d)
-    d.dot(12, 12, 9)
-    d.thick(12, 12, 12, 7, 1.8, "dim") d.thick(12, 12, 15.4, 14.2, 1.8, "dim")
-    d.dot(12, 12, 1.3)
-end
-ICONS.pin = function(d)
-    d.band(12, 9.6, 6.8, 2.2)
-    d.thick(7.6, 13.6, 12, 21.5, 2.6) d.thick(16.4, 13.6, 12, 21.5, 2.6)
-    d.dot(12, 9.6, 2.2, "accent")
-end
-ICONS.chart = function(d)
-    d.thick(6, 20, 6, 12.5, 3.2)
-    d.thick(12, 20, 12, 6, 3.2, "accent")
-    d.thick(18, 20, 18, 9.5, 3.2)
-end
-ICONS.power = function(d) d.band(12, 13, 7.6, 2.6) d.thick(12, 3, 12, 12.5, 2.8, "accent") end
-ICONS.sparkles = function(d)
-    d.thick(12, 3, 12, 21, 2.2) d.thick(3, 12, 21, 12, 2.2)
-    d.dot(12, 12, 2.6)
-    d.dot(19, 5, 1.3, "accent") d.dot(5, 19, 1, "accent")
-end
-ICONS.sword = function(d)
-    d.thick(5, 19, 19, 5, 2.6)
-    d.thick(3, 21, 6.4, 17.6, 2.6, "accent")
-    d.thick(10.4, 8.6, 13.8, 12, 2.6, "dim")
-end
-ICONS.crown = function(d)
-    d.fill(3.6, 13, 16.8, 6, 1.6)
-    d.thick(3.6, 13, 5.6, 6.4, 2.4) d.thick(5.6, 6.4, 9, 11, 2.4)
-    d.thick(9, 11, 12, 5, 2.4) d.thick(12, 5, 15, 11, 2.4)
-    d.thick(15, 11, 18.4, 6.4, 2.4) d.thick(18.4, 6.4, 20.4, 13, 2.4)
-    d.dot(12, 5, 1.6, "accent") d.dot(5.6, 6.4, 1.3, "accent") d.dot(18.4, 6.4, 1.3, "accent")
-end
-ICONS.paw = function(d)
-    d.dot(6, 7.6, 2.3) d.dot(10, 4.4, 2.3) d.dot(14, 4.4, 2.3) d.dot(18, 7.6, 2.3)
-    d.fill(6.6, 10.6, 10.8, 9.6, 5, "accent")
-end
-ICONS.hammer = function(d)
-    d.thick(4, 20, 12.5, 11.5, 3.4)
-    d.thick(11, 6, 18, 13, 6.2, "accent")
-end
-ICONS.dice = function(d)
-    d.fill(3, 3, 18, 18, 4)
-    d.dot(8, 8, 1.7, "dim") d.dot(16, 8, 1.7, "dim") d.dot(12, 12, 1.7, "dim")
-    d.dot(8, 16, 1.7, "dim") d.dot(16, 16, 1.7, "dim")
-end
-ICONS.trophy = function(d)
-    d.fill(7, 3, 10, 11, 4)
-    d.thick(12, 14, 12, 18, 2.4)
-    d.thick(8, 20.5, 16, 20.5, 2.6)
-    d.thick(4, 5, 4, 9.6, 2.2, "accent") d.thick(20, 5, 20, 9.6, 2.2, "accent")
-    d.thick(4, 9.6, 7, 9.6, 2.2, "accent") d.thick(20, 9.6, 17, 9.6, 2.2, "accent")
-end
-ICONS.info = function(d)
-    d.dot(12, 12, 9)
-    d.dot(12, 7.6, 1.4, "dim")
-    d.thick(12, 10.6, 12, 16.6, 2.2, "dim")
-end
-ICONS.alert = function(d)
-    d.dot(12, 12, 9, "accent")
-    d.thick(12, 7, 12, 13.4, 2.2, "dim")
-    d.dot(12, 16.6, 1.4, "dim")
-end
-ICONS.keyboard = function(d)
-    d.fill(2, 6, 20, 12, 2.6)
-    d.dot(6, 9.6, 1.1, "dim") d.dot(9.6, 9.6, 1.1, "dim") d.dot(13.2, 9.6, 1.1, "dim") d.dot(16.8, 9.6, 1.1, "dim")
-    d.fill(6.4, 13.4, 11.2, 2.4, 1.2, "accent")
-end
-ICONS.mouse = function(d)
-    d.fill(6.5, 2.5, 11, 19, 5.5)
-    d.thick(12, 6, 12, 10, 2, "dim")
-end
-ICONS.percent = function(d) d.thick(5, 19, 19, 5, 2.6) d.dot(7, 7, 2.6, "accent") d.dot(17, 17, 2.6, "accent") end
-ICONS.wallet = function(d)
-    d.fill(2.5, 5.5, 19, 13.5, 2.6)
-    d.fill(13.6, 10, 8.2, 5.4, 1.4, "dim")
-    d.dot(16.4, 12.7, 0.9, "dim")
-end
-ICONS.sun = function(d) d.dot(12, 12, 4.2) rays(d, 12, 12, 7, 9.8, 8, "accent", 2.2) end
-ICONS.filter = function(d) d.thick(3, 5, 21, 5, 2.4) d.thick(6, 11, 18, 11, 2.4) d.thick(9.5, 17, 14.5, 17, 2.4) end
-ICONS.book = function(d)
-    d.fill(4, 3, 16, 18, 2.2)
-    d.thick(8.5, 3, 8.5, 21, 1.6, "dim")
-end
-ICONS.send = function(d)
-    d.thick(21, 3, 3, 10.5, 2.4) d.thick(3, 10.5, 11, 13.5, 2.4) d.thick(11, 13.5, 21, 3, 2.4)
-    d.thick(11, 13.5, 14, 21, 2.4, "accent") d.thick(14, 21, 21, 3, 2.4, "accent")
-end
-ICONS.gauge = function(d)
-    d.band(12, 13, 8.6, 2.6, "dim")
-    d.thick(12, 13, 16.6, 8.2, 2.2, "accent")
-    d.dot(12, 13, 1.8)
-end
-ICONS.orbit = function(d)
-    d.dot(12, 12, 3)
-    d.band(12, 12, 9, 1.8, "dim")
-    d.dot(19.6, 6.4, 2, "accent")
-end
-ICONS.tornado = function(d) d.thick(3, 5, 21, 5, 2.4) d.thick(5, 10, 19, 10, 2.4) d.thick(8, 15, 16, 15, 2.4, "accent") d.thick(10.5, 20, 13.5, 20, 2.4, "accent") end
-ICONS["repeat"] = function(d)
-    d.thick(4, 8, 18, 8, 2.4) d.thick(15, 5, 18, 8, 2.4) d.thick(15, 11, 18, 8, 2.4)
-    d.thick(20, 16, 6, 16, 2.4, "accent") d.thick(9, 13, 6, 16, 2.4, "accent") d.thick(9, 19, 6, 16, 2.4, "accent")
-end
-ICONS.skull = function(d)
-    d.fill(4, 3.5, 16, 14, 7)
-    d.dot(9, 10, 2, "dim") d.dot(15, 10, 2, "dim")
-    d.thick(9, 18, 9, 21, 2, "dim") d.thick(12, 18, 12, 21, 2, "dim") d.thick(15, 18, 15, 21, 2, "dim")
-end
-ICONS["trending-up"] = function(d)
-    d.thick(3, 17, 9, 11, 2.6) d.thick(9, 11, 13, 15, 2.6) d.thick(13, 15, 21, 7, 2.6)
-    d.thick(16, 7, 21, 7, 2.6, "accent") d.thick(21, 7, 21, 12, 2.6, "accent")
-end
-ICONS.door = function(d)
-    d.fill(5, 3, 14, 18, 1.8)
-    d.dot(15.5, 12, 1.5, "dim")
-end
-ICONS.star = function(d)
-    -- True pentagram: all 5 chords cross through the shared central region,
-    -- not just touch at endpoints. The accent-tinted chord must be the LAST
-    -- one drawn (i == 4, not i == 0) so the 4 primary chords parented after
-    -- it don't paint over its share of that crossing zone in Colored mode.
-    for i = 0, 4 do
-        local a1 = -math.pi / 2 + i * 2 * math.pi / 5
-        local a2 = -math.pi / 2 + (i + 2) * 2 * math.pi / 5
-        d.thick(12 + 9 * math.cos(a1), 12 + 9 * math.sin(a1), 12 + 9 * math.cos(a2), 12 + 9 * math.sin(a2), 6.2, i == 4 and "accent" or nil)
-    end
-end
-ICONS.heart = function(d)
-    d.dot(8, 9, 4.3) d.dot(16, 9, 4.3, "accent")
-    d.thick(4.2, 11, 12, 20, 7.6) d.thick(19.8, 11, 12, 20, 7.6, "accent")
-end
-ICONS.wrench = ICONS.hammer
-ICONS.tool = ICONS.hammer
-ICONS.bug = function(d)
-    d.fill(7, 8, 10, 13, 5)
-    d.dot(9.4, 8.6, 1, "dim") d.dot(14.6, 8.6, 1, "dim")
-    d.thick(7, 12, 3, 11, 2) d.thick(17, 12, 21, 11, 2)
-    d.thick(7, 17, 3.5, 19, 2) d.thick(17, 17, 20.5, 19, 2)
-    d.thick(12, 8, 12, 21, 2, "dim")
-end
-ICONS.rocket = function(d)
-    d.thick(12, 2.5, 6.5, 14, 5.2) d.thick(12, 2.5, 17.5, 14, 5.2) d.thick(6.5, 14, 17.5, 14, 5.2)
-    d.dot(12, 9, 1.9, "dim")
-    d.thick(9, 14, 8, 20, 3, "accent") d.thick(15, 14, 16, 20, 3, "accent")
-end
-ICONS.map = function(d)
-    d.fill(3, 4, 18, 16, 2.4)
-    d.thick(9, 4, 9, 20, 1.6, "dim") d.thick(15, 4, 15, 20, 1.6, "dim")
-end
-ICONS.timer = ICONS.clock
-ICONS.fps = ICONS.gauge
-ICONS.esp = ICONS.radar
-ICONS.money = ICONS.coins
-ICONS.config = ICONS.save
-ICONS.gear = ICONS.settings
-
--- ============================================================
--- Extended pictogram library
--- ============================================================
-ICONS.fire = function(d)
-    d.dot(12, 14.5, 6.6)
-    d.dot(12.6, 8, 3.2, "accent")
-    d.dot(11.6, 17.5, 2.2, "dim")
-end
-ICONS.gem = function(d)
-    d.thick(4, 9, 20, 9, 6.4)
-    d.thick(4, 9, 12, 21, 6.4)
-    d.thick(20, 9, 12, 21, 6.4)
-    d.dot(12, 6, 2.6, "accent")
-end
-ICONS.diamond = ICONS.gem
-ICONS.key = function(d)
-    d.band(7.6, 7.6, 4.6, 2.6)
-    d.thick(10.6, 10.6, 20.5, 20.5, 3, "accent")
-    d.thick(16, 16, 18.4, 13.6, 2.6, "accent") d.thick(18.4, 18.4, 20.8, 16, 2.6, "accent")
-end
-ICONS.gift = function(d)
-    d.fill(3, 10, 18, 11, 2)
-    d.fill(4.4, 10, 15.2, 3.6, 1, "accent")
-    d.thick(12, 3.4, 12, 21, 2, "dim")
-    d.dot(8.4, 6.4, 2.4, "accent") d.dot(15.6, 6.4, 2.4, "accent")
-end
-ICONS.magnet = function(d)
-    d.thick(6, 4, 6, 14, 4.4)
-    d.thick(18, 4, 18, 14, 4.4, "accent")
-    d.band(12, 14, 6.2, 4.4, "dim")
-end
-ICONS.wifi = function(d)
-    d.thick(5, 17, 5, 20, 3)
-    d.thick(11, 13, 11, 20, 3, "dim")
-    d.thick(17, 8, 17, 20, 3, "accent")
-end
-ICONS.battery = function(d)
-    d.fill(2.5, 7, 17, 10, 2.4)
-    d.fill(19.5, 10, 2.5, 4, 1, "dim")
-    d.fill(4.5, 9, 10, 6, 1.2, "accent")
-end
-ICONS.download = function(d)
-    d.thick(12, 3, 12, 14, 2.8)
-    d.thick(6.5, 10, 12, 15.5, 2.8) d.thick(17.5, 10, 12, 15.5, 2.8)
-    d.thick(4, 20, 20, 20, 2.8, "accent")
-end
-ICONS.upload = function(d)
-    d.thick(12, 15, 12, 4, 2.8)
-    d.thick(6.5, 9, 12, 3.5, 2.8) d.thick(17.5, 9, 12, 3.5, 2.8)
-    d.thick(4, 20, 20, 20, 2.8, "accent")
-end
-ICONS.link = function(d)
-    d.band(8.4, 15.6, 4, 3)
-    d.band(15.6, 8.4, 4, 3, "accent")
-end
-ICONS.volume = function(d)
-    d.fill(3, 9.4, 6.5, 5.2, 1.2)
-    d.thick(9.5, 9.4, 13.5, 5.4, 2.4) d.thick(9.5, 14.6, 13.5, 18.6, 2.4)
-    d.thick(16.2, 9, 16.2, 15, 2.2, "accent") d.thick(19, 6.6, 19, 17.4, 2.2, "accent")
-end
-ICONS.play = function(d)
-    d.thick(7, 4.5, 19, 12, 6)
-    d.thick(19, 12, 7, 19.5, 6, "accent")
-    d.thick(7, 4.5, 7, 19.5, 6)
-end
-ICONS.pause = function(d) d.thick(8, 4, 8, 20, 4.4) d.thick(16, 4, 16, 20, 4.4, "accent") end
-ICONS.ghost = function(d)
-    d.fill(5, 4, 14, 15, 7)
-    d.dot(9, 11, 1.6, "dim") d.dot(15, 11, 1.6, "dim")
-    d.dot(6.5, 19.5, 1.6) d.dot(10.5, 19.5, 1.6, "accent") d.dot(14.5, 19.5, 1.6) d.dot(17.5, 19, 1.6, "accent")
-end
-ICONS.leaf = function(d)
-    d.thick(5, 19, 19, 5, 7)
-    d.thick(9, 15, 15, 9, 1.6, "dim")
-end
-ICONS.droplet = function(d)
-    d.dot(12, 14, 5.6)
-    d.thick(6.6, 14, 12, 3.2, 2.4, "accent")
-    d.thick(17.4, 14, 12, 3.2, 2.4, "accent")
-    d.dot(10.2, 12.4, 1.4, "dim")
-end
-ICONS.compass = function(d)
-    d.band(12, 12, 9, 2.2, "dim")
-    d.thick(9, 15, 12, 12, 2.2, "accent") d.thick(15, 9, 12, 12, 2.2, "accent")
-    d.dot(12, 12, 1.4)
-end
-ICONS.hourglass = function(d)
-    d.fill(5, 3, 14, 4.4, 1.4)
-    d.fill(5, 16.6, 14, 4.4, 1.4)
-    d.thick(6, 4.6, 18, 19.4, 3.4, "dim") d.thick(18, 4.6, 6, 19.4, 3.4, "dim")
-    d.dot(12, 12, 1.6, "accent")
-end
-ICONS.medal = function(d)
-    d.thick(8.4, 3, 5, 9.4, 2.2) d.thick(15.6, 3, 19, 9.4, 2.2)
-    d.dot(12, 15, 6.4)
-    d.dot(12, 15, 2.6, "dim")
-end
-ICONS.thumbsup = function(d)
-    d.fill(3, 10, 5.4, 11, 2.2)
-    d.fill(9, 9, 10.6, 12, 3.4, "accent")
-    d.thick(9, 9, 7.2, 3.6, 2.4, "dim")
-end
-ICONS.warning = ICONS.alert
-ICONS.question = function(d)
-    d.dot(12, 12, 9, "accent")
-    d.thick(9, 8.6, 12, 7, 2.2, "dim") d.thick(12, 7, 14.6, 9.4, 2.2, "dim")
-    d.thick(14.6, 9.4, 12, 12.4, 2.2, "dim") d.thick(12, 12.4, 12, 14.4, 2.2, "dim")
-    d.dot(12, 17.4, 1.3, "dim")
-end
-ICONS.camera = function(d)
-    d.fill(2.5, 7, 19, 12.5, 2.6)
-    d.fill(8.4, 4, 7.2, 3.4, 1, "dim")
-    d.dot(12, 13.2, 4, "dim")
-    d.dot(12, 13.2, 2, "accent")
-end
-ICONS.palette = function(d)
-    d.dot(12, 12, 9.4)
-    d.dot(8, 9, 1.7, "dim") d.dot(12.4, 7, 1.7, "dim") d.dot(16.4, 9.4, 1.7, "dim") d.dot(9.4, 15.6, 1.7, "dim")
-end
-ICONS.server = function(d)
-    d.fill(3, 4, 18, 7, 1.8)
-    d.fill(3, 13, 18, 7, 1.8, "accent")
-    d.dot(6.2, 7.5, 1, "dim") d.dot(6.2, 16.5, 1, "dim")
-end
-ICONS.database = function(d)
-    d.band(12, 5.6, 7.4, 2.4)
-    d.fill(4.6, 5.6, 14.8, 12.8, 0)
-    d.band(12, 18.4, 7.4, 2.4, "accent")
-end
-ICONS.terminal = function(d)
-    d.fill(2.5, 4, 19, 16, 2.4)
-    d.thick(5.5, 9, 9.5, 12, 2.2, "accent") d.thick(5.5, 15, 9.5, 12, 2.2, "accent")
-    d.thick(12, 15, 17.5, 15, 2.2, "dim")
-end
-ICONS.code = ICONS.terminal
-ICONS.bookmark = function(d)
-    d.fill(5, 3, 14, 14, 1.6)
-    d.thick(5, 15, 12, 20.5, 2.4)
-    d.thick(19, 15, 12, 20.5, 2.4)
-end
-ICONS.tag = function(d)
-    d.fill(3, 4, 12, 10, 1.8)
-    d.thick(12, 9, 20, 17, 6, "accent")
-    d.dot(7, 8, 1.4, "dim")
-end
-ICONS.calendar = function(d)
-    d.fill(3, 4.5, 18, 16, 2.4)
-    d.fill(3, 4.5, 18, 4.6, 2, "accent")
-    d.thick(7.5, 2.5, 7.5, 6.5, 1.8, "dim") d.thick(16.5, 2.5, 16.5, 6.5, 1.8, "dim")
-end
-ICONS.mail = function(d)
-    d.fill(2.5, 5, 19, 14, 2.4)
-    d.thick(3.4, 6.2, 12, 13, 2, "dim") d.thick(20.6, 6.2, 12, 13, 2, "dim")
-end
-ICONS.phone = function(d)
-    d.thick(7, 3.4, 15.5, 19.4, 6.4)
-    d.dot(11.2, 18, 1, "dim")
-end
-ICONS.wand = function(d)
-    d.thick(5, 19, 16, 8, 3)
-    d.dot(18.4, 5.6, 1.8, "accent")
-    d.dot(21, 8.4, 1, "accent") d.dot(15.8, 3, 1, "accent")
-end
-ICONS.flask = function(d)
-    d.thick(9.5, 3, 9.5, 9.4, 2.4)
-    d.thick(14.5, 3, 14.5, 9.4, 2.4)
-    d.thick(9.5, 3, 14.5, 3, 2.4)
-    d.dot(12, 16, 6.4, "accent")
-    d.dot(12, 16, 2.2, "dim")
-end
-ICONS.anchor = function(d)
-    d.dot(12, 5, 2.2)
-    d.thick(12, 7, 12, 20, 2.4)
-    d.band(12, 15, 5.6, 2.4, "accent")
-    d.thick(4, 13, 20, 13, 2.4, "dim")
-end
-
+for name in pairs(ICON_SPRITES) do ICONS[name] = true end
+for name in pairs(ICON_ALIASES) do ICONS[name] = true end
 
 BPUI.Icons = ICONS
 
-local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
-
--- Derives the secondary "Colored" hue from a single base color: a modest
--- warm hue-rotation plus a brightness lift, so any icon gets a pleasant,
--- harmonious two-tone treatment automatically without needing a hand-picked
--- palette per icon. Purely grey/desaturated inputs just stay grey (no hue to
--- rotate), which is a safe, inert fallback rather than a broken one.
-local function iconAccent(c)
-    local ok, h, s, v = pcall(function() return c:ToHSV() end)
-    if not ok then return c end
-    h = (h + 0.09) % 1
-    s = math.clamp(s * 0.9, 0, 1)
-    v = math.clamp(v * 0.82 + 0.32, 0, 1)
-    return Color3.fromHSV(h, s, v)
-end
-
--- Derives a "dim" void/hole shade from a base color. IMPORTANT: this must
--- shift brightness (V), not just add transparency -- a translucent copy of a
--- color painted over an OPAQUE region of that exact same color is a visual
--- no-op (alpha-blending C over C yields C at any alpha), which is exactly
--- what a pupil/keyhole/hand drawn as "same hue, more transparent" collapses
--- into when it sits on top of a same-colored solid fill underneath it. Going
--- lighter when the base is dark and darker when the base is light guarantees
--- real contrast against the shape it's cut into, in any theme.
-local function iconDim(c)
-    local ok, h, s, v = pcall(function() return c:ToHSV() end)
-    if not ok then return c end
-    if v > 0.5 then
-        v = v * 0.3
-    else
-        v = v + (1 - v) * 0.7
-    end
-    s = s * 0.55
-    return Color3.fromHSV(h, s, v)
-end
-
--- Icons are drawn as small stacks of Frames on a 24-unit grid via a `d`
--- primitive table. Every primitive takes an optional trailing `role`
--- ("accent" | "dim" | nil/"primary"):
---   primary (default) - the base icon color, at the requested alpha.
---   accent            - a second hue in Colored mode; identical to primary
---                        (same color, same alpha) in monochrome mode, so a
---                        monochrome icon still reads as one solid silhouette.
---   dim               - a genuinely darker/lighter shade of the primary (or
---                        accent, when Colored) color, so it reads as a void
---                        or emboss (a pupil, a keyhole, a clock hand) against
---                        a solid fill in BOTH modes, in any theme.
--- This is what lets `Colored` be a single opt-in boolean per icon instead of
--- requiring a hand-authored palette for every glyph.
-local function drawIcon(parent, name, size, color, zindex, alpha, colored)
-    local def = ICONS[name]
-    if not def then return nil end
-    alpha = alpha or 0
-    zindex = zindex or 5
-    local k = size / 24
-    local t = math.max(1, 2 * k)
-    local primary = color
-    local accent = colored and iconAccent(color) or color
-    local dim = iconDim(accent)
-    local holder = new("Frame", {
+-- Builds one sliced-and-tinted icon ImageLabel from a {assetId, x, y} sprite
+-- entry on the shared ICON_SPRITE_SIZE grid.
+local function spriteIcon(parent, sprite, size, color, zindex)
+    return new("ImageLabel", {
         Name = "Icon",
         BackgroundTransparency = 1,
+        Image = "rbxassetid://" .. sprite[1],
+        ImageRectOffset = Vector2.new(sprite[2], sprite[3]),
+        ImageRectSize = Vector2.new(ICON_SPRITE_SIZE, ICON_SPRITE_SIZE),
+        ImageColor3 = color,
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, size, 0, size),
         ZIndex = zindex,
         Parent = parent,
     })
-    -- Remember whether this icon was drawn in Colored mode so tintIcon can
-    -- decide, per-icon, whether "accent"-tagged frames should be preserved
-    -- (real distinct hue) or retinted like everything else (mono mode, where
-    -- accent == primary at creation time and freezing it serves no purpose).
-    holder:SetAttribute("IconColored", colored == true)
-    local d = {}
-    local function roleColor(role)
-        if role == "accent" then return accent end
-        if role == "dim" then return dim end
-        return primary
-    end
-    local function roleAlpha(role)
-        -- A flat "+0.1" boost matches this exactly when alpha is low (normal
-        -- opaque icons), but at high base alpha (e.g. a watermark's ~0.955)
-        -- it clamps straight to 1 -- fully, invisibly transparent, not just
-        -- fainter -- which silently erases dim-tagged detail (a pupil, an
-        -- exclamation mark, a keyhole) instead of just softening it. Scaling
-        -- the boost against the *remaining* opacity headroom keeps the same
-        -- 0.1 boost at alpha=0 while guaranteeing the result never reaches a
-        -- fully-invisible 1 for any alpha < 1.
-        if role == "dim" then return alpha + (1 - alpha) * 0.1 end
-        return alpha
-    end
-    local function seg(x1, y1, x2, y2, w, role)
-        local dx, dy = (x2 - x1) * k, (y2 - y1) * k
-        local len = math.sqrt(dx * dx + dy * dy)
-        local f = new("Frame", {
-            Name = "Fill",
-            BackgroundColor3 = roleColor(role),
-            BackgroundTransparency = roleAlpha(role),
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0, (x1 + x2) * 0.5 * k, 0, (y1 + y2) * 0.5 * k),
-            Size = UDim2.new(0, len + w, 0, w),
-            Rotation = math.deg(atan2(dy, dx)),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, RADIUS.pill)
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    function d.line(x1, y1, x2, y2, role) seg(x1, y1, x2, y2, t, role) end
-    function d.thick(x1, y1, x2, y2, w, role) seg(x1, y1, x2, y2, w * k, role) end
-    function d.dot(cx, cy, r, role)
-        local f = new("Frame", {
-            Name = "Fill",
-            BackgroundColor3 = roleColor(role),
-            BackgroundTransparency = roleAlpha(role),
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0, cx * k, 0, cy * k),
-            Size = UDim2.new(0, r * 2 * k, 0, r * 2 * k),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, RADIUS.pill)
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    function d.ring(cx, cy, r, role)
-        local inner = math.max(0, r * k - t / 2)
-        local f = new("Frame", {
-            Name = "Stroke",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0, cx * k, 0, cy * k),
-            Size = UDim2.new(0, inner * 2, 0, inner * 2),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, RADIUS.pill)
-        stroke(f, roleColor(role), t, roleAlpha(role))
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    -- Thick ring / "donut band" -- a bolder, more solid-looking alternative
-    -- to a thin d.ring, used for pictogram shapes like a bullseye or a coin.
-    function d.band(cx, cy, r, w, role)
-        local width = math.max(t, w * k)
-        local inner = math.max(0, r * k - width / 2)
-        local f = new("Frame", {
-            Name = "Stroke",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0, cx * k, 0, cy * k),
-            Size = UDim2.new(0, inner * 2, 0, inner * 2),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, RADIUS.pill)
-        stroke(f, roleColor(role), width, roleAlpha(role))
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    function d.rect(x, y, w, h, rad, role)
-        local f = new("Frame", {
-            Name = "Stroke",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, x * k + t / 2, 0, y * k + t / 2),
-            Size = UDim2.new(0, math.max(0, w * k - t), 0, math.max(0, h * k - t)),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, math.max(0, rad * k - t / 2))
-        stroke(f, roleColor(role), t, roleAlpha(role))
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    function d.fill(x, y, w, h, rad, role)
-        local f = new("Frame", {
-            Name = "Fill",
-            BackgroundColor3 = roleColor(role),
-            BackgroundTransparency = roleAlpha(role),
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, x * k, 0, y * k),
-            Size = UDim2.new(0, w * k, 0, h * k),
-            ZIndex = zindex,
-            Parent = holder,
-        })
-        corner(f, rad * k)
-        if role == "accent" or role == "dim" then f:SetAttribute("IconRole", role) end
-    end
-    def(d)
-    return holder
 end
 
 local function isAssetIcon(v)
@@ -1283,12 +972,22 @@ local function isAssetIcon(v)
     return v:match("^%s*%d+%s*$") ~= nil
 end
 
-local function iconAny(parent, icon, size, color, zindex, colored)
+-- `colored` opts a named icon into a flat ACTIVE.Accent tint instead of the
+-- caller's base color (the `Colored = true` config flag). `iconColor`, when
+-- given, wins over both and is remembered on the instance (IconLocked) so
+-- later hover/selection/theme retinting -- which always goes through
+-- tintIcon or a direct ImageColor3 tween -- leaves it alone.
+local function iconAny(parent, icon, size, color, zindex, colored, iconColor)
     if icon == nil or icon == "" then return nil, nil end
+    zindex = zindex or 5
     if type(icon) == "string" then
         local key = icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")
-        if ICONS[key] then
-            return drawIcon(parent, key, size, color, zindex, nil, colored), "draw"
+        local sprite = spriteFor(key)
+        if sprite then
+            local tint = iconColor or (colored and ACTIVE.Accent) or color
+            local i = spriteIcon(parent, sprite, size, tint, zindex)
+            if iconColor or colored then i:SetAttribute("IconLocked", true) end
+            return i, "draw"
         end
     end
     if isAssetIcon(icon) then
@@ -1298,13 +997,14 @@ local function iconAny(parent, icon, size, color, zindex, colored)
             Name = "Icon",
             BackgroundTransparency = 1,
             Image = img,
-            ImageColor3 = color,
+            ImageColor3 = iconColor or color,
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
             Size = UDim2.new(0, size, 0, size),
-            ZIndex = zindex or 5,
+            ZIndex = zindex,
             Parent = parent,
         })
+        if iconColor then i:SetAttribute("IconLocked", true) end
         return i, "image"
     end
     local t = new("TextLabel", {
@@ -1314,12 +1014,12 @@ local function iconAny(parent, icon, size, color, zindex, colored)
         Text = tostring(icon),
         Font = Enum.Font.GothamMedium,
         TextSize = math.floor(size * 0.92),
-        TextColor3 = color,
+        TextColor3 = iconColor or color,
         TextScaled = false,
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, size + 6, 0, size + 6),
-        ZIndex = zindex or 5,
+        ZIndex = zindex,
         Parent = parent,
     })
     return t, "text"
@@ -1380,41 +1080,28 @@ local function bar(parent, w, h, rot, color, zindex, anchor, posX, posY)
     return f
 end
 
--- Re-tints a drawn icon to a single flat color (used for hover/selection
--- state and theme rebinding). Frames tagged IconRole="accent" are only
--- skipped when the icon was actually drawn in Colored mode (holder's
--- IconColored attribute) -- that's the only case where "accent" is a real,
--- visually distinct second hue worth preserving through state/theme
--- changes. In mono mode accent was created identical to primary in the
--- first place, so there's nothing to protect: retint it right along with
--- everything else, or it would freeze at its original color forever after
--- the first hover/selection tint. Frames tagged IconRole="dim" always track
--- the new tint, but through iconDim() rather than the flat color, so a
--- void/hole detail (a pupil, a clock hand) stays visibly cut into the shape
--- instead of disappearing into it after the very first retint.
+-- Re-tints an icon (used for hover/selection state and theme rebinding).
+-- Named/asset icons built via iconAny are a single ImageLabel, so that's
+-- just an ImageColor3 set -- EXCEPT when the icon carries an explicit
+-- IconLocked attribute: that means it was given a fixed tint on purpose
+-- (`Colored = true` or an explicit `IconColor`), and hover/selection/theme
+-- changes must leave it alone rather than silently overwriting the one
+-- color it was asked to keep. Internal chrome (a checkmark, a chevron, the
+-- close cross, ...) is still a small stack of plain Frames built via
+-- bar()/iconHolder() -- no "role" tagging, that belonged only to the
+-- drawn-pictogram system these replaced -- so those get a flat recolor of
+-- every child instead.
 local function tintIcon(holder, color)
     if not holder then return end
+    if holder:GetAttribute("IconLocked") == true then return end
     if holder:IsA("ImageLabel") then holder.ImageColor3 = color return end
-    local dimColor = iconDim(color)
-    local wasColored = holder:GetAttribute("IconColored") == true
-    local function skip(inst)
-        return wasColored and inst:GetAttribute("IconRole") == "accent"
-    end
-    local function pick(inst)
-        local role = inst:GetAttribute("IconRole")
-        if role == "dim" then return dimColor end
-        return color
-    end
     for _, c in ipairs(holder:GetChildren()) do
         if c:IsA("Frame") then
-            if not skip(c) then
-                local tint = pick(c)
-                if c.Name ~= "Stroke" then c.BackgroundColor3 = tint end
-                local s = c:FindFirstChildOfClass("UIStroke")
-                if s then s.Color = tint end
-            end
+            if c.Name ~= "Stroke" then c.BackgroundColor3 = color end
+            local s = c:FindFirstChildOfClass("UIStroke")
+            if s then s.Color = color end
         elseif c:IsA("UIStroke") then
-            if not skip(holder) then c.Color = pick(holder) end
+            c.Color = color
         end
     end
     local s = holder:FindFirstChildOfClass("UIStroke")
@@ -1593,19 +1280,6 @@ local function ripple(host, input, color, alpha)
         end
     end)
     return ok
-end
-
-local function hoverable(owner, host, target, restKey, hoverKey, extra)
-    if IS_MOBILE then return end
-    track(owner, host.MouseEnter:Connect(function()
-        if owner and owner._locked then return end
-        tween(target, { BackgroundColor3 = ACTIVE[hoverKey] }, MOTION.hover)
-        if extra and extra.onEnter then extra.onEnter() end
-    end))
-    track(owner, host.MouseLeave:Connect(function()
-        tween(target, { BackgroundColor3 = ACTIVE[restKey] }, MOTION.hover)
-        if extra and extra.onLeave then extra.onLeave() end
-    end))
 end
 
 local function pressable(owner, host, scaleTarget, onActivate, opts)
@@ -2080,7 +1754,9 @@ function BPUI:CreateWindow(config)
     local main = new("Frame", {
         Name = "Main",
         BackgroundColor3 = theme.Window,
-        BackgroundTransparency = config.Transparency or (theme.Dark and 0.02 or 0),
+        -- Fully opaque unless the script asks otherwise: a solid panel reads
+        -- as one crisp object against whatever the game is doing behind it.
+        BackgroundTransparency = config.Transparency or 0,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 1, 0),
         ClipsDescendants = true,
@@ -2103,25 +1779,30 @@ function BPUI:CreateWindow(config)
         Parent = main,
     })
     self._backdrop = backdrop
-    self._brandIcon = config.Icon
     self._sectionStyle = config.SectionStyle or "Caps"
 
-    local bgDefaults = { Ambient = true, Watermark = true, ImageAlpha = 0.92 }
+    local bgDefaults = { ImageAlpha = 0.92 }
     self._bg = {}
     for k, v in pairs(bgDefaults) do self._bg[k] = v end
     if type(config.Background) == "table" then
         for k, v in pairs(config.Background) do self._bg[k] = v end
     end
     if type(settings.Background) == "table" then
+        -- Rebuilt rather than read in place: a settings.json written by an
+        -- older version still carries Ambient/Orb1/Orb2/Watermark keys, and
+        -- self._settings is the very table that gets re-encoded on every
+        -- later save. Dropping them here is what lets an upgraded file
+        -- actually converge on the current schema instead of carrying dead
+        -- keys forever.
         local sb = settings.Background
-        if sb.Ambient ~= nil then self._bg.Ambient = sb.Ambient end
-        if sb.Watermark ~= nil then self._bg.Watermark = sb.Watermark end
-        if type(sb.Orb1) == "table" then self._bg.Orb1 = Color3.fromRGB(sb.Orb1[1], sb.Orb1[2], sb.Orb1[3]) end
-        if type(sb.Orb2) == "table" then self._bg.Orb2 = Color3.fromRGB(sb.Orb2[1], sb.Orb2[2], sb.Orb2[3]) end
-        if sb.Image ~= nil then self._bg.Image = sb.Image end
-        if sb.ImageAlpha ~= nil then self._bg.ImageAlpha = sb.ImageAlpha end
-        if sb.WatermarkAlpha ~= nil then self._bg.WatermarkAlpha = sb.WatermarkAlpha end
-        if sb.WatermarkColored ~= nil then self._bg.WatermarkColored = sb.WatermarkColored end
+        local clean = {}
+        for _, k in ipairs({ "Image", "ImageAlpha", "ImageTile", "ImageTileSize" }) do
+            if sb[k] ~= nil then
+                clean[k] = sb[k]
+                self._bg[k] = sb[k]
+            end
+        end
+        settings.Background = clean
     end
     self:_buildBackground()
 
@@ -2151,26 +1832,6 @@ function BPUI:CreateWindow(config)
         Parent = main,
     })
     bind(self, vdiv, "BackgroundColor3", "Stroke")
-
-    local wash = new("Frame", {
-        Name = "Wash",
-        BackgroundColor3 = theme.Accent,
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 150),
-        ZIndex = 2,
-        Parent = sidebar,
-    })
-    bind(self, wash, "BackgroundColor3", "Accent")
-    new("UIGradient", {
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.90),
-            NumberSequenceKeypoint.new(0.55, 0.975),
-            NumberSequenceKeypoint.new(1, 1),
-        }),
-        Rotation = 90,
-        Parent = wash,
-    })
 
     local brand = new("Frame", {
         Name = "Brand",
@@ -2216,10 +1877,10 @@ function BPUI:CreateWindow(config)
     end
 
     if config.Icon and mark then
-        local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5, config.IconColored == true)
+        local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5, config.IconColored == true, config.IconColor)
         if kind == "image" then
             ico.Size = UDim2.new(1, useBox and -10 or -2, 1, useBox and -10 or -2)
-            bind(self, ico, "ImageColor3", useBox and "AccentText" or "Text")
+            if not config.IconColor then bind(self, ico, "ImageColor3", useBox and "AccentText" or "Text") end
         elseif kind == "draw" then
             bindIcon(self, ico, useBox and "AccentText" or "Text")
         end
@@ -2750,7 +2411,11 @@ function BPUI:CreateWindow(config)
     main.BackgroundTransparency = 1
     rootScale.Scale = fit * 0.94
     tw(rootScale, MOTION.reveal, { Scale = fit })
-    tw(main, MOTION.reveal, { BackgroundTransparency = config.Transparency or (theme.Dark and 0.02 or 0) })
+    -- Must match the creation value above. This tween is what the window
+    -- actually ends up at (creation sets it, the next line blanks it to 1,
+    -- this brings it back), so a stale expression here silently overrides
+    -- the real default.
+    tw(main, MOTION.reveal, { BackgroundTransparency = config.Transparency or 0 })
 
     self._config = config
     table.insert(BPUI.Windows, self)
@@ -2769,10 +2434,14 @@ function BPUI:CreateWindow(config)
     return self
 end
 
+-- The backdrop holds nothing but an optional user-supplied tiled texture.
+-- There is deliberately no ambient glow and no giant watermark behind the
+-- page: depth comes from the tonal ladder between window, sidebar, card and
+-- row plus hairline strokes, not from coloured light. A flat, quiet surface
+-- keeps attention on the content and never competes with the game behind it.
 function Window:_buildBackground()
     if self._destroyed or not self._backdrop then return end
     for _, c in ipairs(self._backdrop:GetChildren()) do c:Destroy() end
-    self._orbs = {}
     local bg = self._bg
     local theme = ACTIVE
 
@@ -2794,109 +2463,34 @@ function Window:_buildBackground()
             })
         end
     end
-
-    if bg.Ambient then
-        local c1 = bg.Orb1 or theme.Accent
-        local c2 = bg.Orb2 or hueShift(theme.Accent, 48)
-        local size = bg.OrbSize or 620
-        local op = bg.OrbOpacity or 0.26
-        local o1 = orb(self._backdrop, c1, size, op, 0.10, 0.02, 1)
-        local o2 = orb(self._backdrop, c2, size * 0.78, op * 0.8, 0.96, 0.12, 1)
-        self._orbs = {
-            { inst = o1, derived = not bg.Orb1, shift = 0 },
-            { inst = o2, derived = not bg.Orb2, shift = 48 },
-        }
-        if bg.Orb3 then
-            local o3 = orb(self._backdrop, bg.Orb3, size * 0.6, op * 0.6, 0.55, 1.02, 1)
-            table.insert(self._orbs, { inst = o3, derived = false, shift = 0 })
-        end
-    end
-
-    if bg.Watermark then
-        local wm = new("Frame", {
-            Name = "Watermark",
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(1, 1),
-            Position = UDim2.new(1, 70, 1, 90),
-            Size = UDim2.new(0, 460, 0, 460),
-            Rotation = -12,
-            ZIndex = 1,
-            Parent = self._backdrop,
-        })
-        local icon = self._brandIcon
-        local alpha = bg.WatermarkAlpha or 0.955
-        local key = type(icon) == "string" and icon:lower():gsub("^lucide:", ""):gsub("^icon:", "") or nil
-        local named = key and ICONS[key]
-        if named then
-            drawIcon(wm, key, 380, theme.Text, 1, alpha, bg.WatermarkColored == true)
-        elseif icon and isAssetIcon(icon) then
-            local img = tostring(icon)
-            if not img:match("^rbxasset") then img = "rbxassetid://" .. img:gsub("%D", "") end
-            new("ImageLabel", {
-                BackgroundTransparency = 1,
-                Image = img,
-                ImageColor3 = theme.Text,
-                ImageTransparency = alpha,
-                Size = UDim2.new(1, 0, 1, 0),
-                ZIndex = 1,
-                Parent = wm,
-            })
-        else
-            -- Never blow an arbitrary icon string (an emoji, a typo'd name)
-            -- up to 460px: some emoji are missing from Roblox's font
-            -- entirely and would render as a giant broken glyph, and any
-            -- emoji that DOES render would be full-colour, clashing with the
-            -- monochrome faint-brand-mark look. Always fall back to a plain
-            -- letter-mark here instead, same as a window with no Icon set.
-            local label = self._title:sub(1, 2):upper()
-            local tl = new("TextLabel", {
-                BackgroundTransparency = 1,
-                Text = label,
-                Font = FONT.bold,
-                TextSize = 100,
-                TextColor3 = theme.Text,
-                TextTransparency = alpha,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, 0),
-                Size = UDim2.new(0, 220, 0, 110),
-                ZIndex = 1,
-                Parent = wm,
-            })
-            new("UIScale", { Scale = 4.2, Parent = tl })
-        end
-    end
 end
 
 function Window:SetBackground(cfg)
     if type(cfg) ~= "table" then return end
-    local structural = false
+    local rebuild = cfg.Image ~= nil
     for k, v in pairs(cfg) do
-        if k ~= "Orb1" and k ~= "Orb2" then structural = true end
         self._bg[k] = v
     end
-    if structural then
+    -- Only a change of Image itself needs the texture torn down and rebuilt.
+    -- Opacity and tiling are applied to the existing ImageLabel in place,
+    -- because the opacity slider fires this on every frame of a drag and
+    -- recreating the label each time makes the texture re-resolve its asset
+    -- and flicker under the very control that is meant to fade it smoothly.
+    local tex = self._backdrop and self._backdrop:FindFirstChild("Texture")
+    if rebuild or not tex then
         self:_buildBackground()
     else
-        for i, o in ipairs(self._orbs or {}) do
-            local key = i == 1 and "Orb1" or "Orb2"
-            if cfg[key] ~= nil and o.inst.Parent then
-                o.derived = not cfg[key]
-                tintOrb(o.inst, cfg[key] or hueShift(ACTIVE.Accent, o.shift))
-            end
-        end
+        local bg = self._bg
+        tex.ImageTransparency = math.clamp(bg.ImageAlpha or 0.92, 0, 1)
+        tex.ScaleType = bg.ImageTile == false and Enum.ScaleType.Crop or Enum.ScaleType.Tile
+        tex.TileSize = UDim2.new(0, bg.ImageTileSize or 96, 0, bg.ImageTileSize or 96)
     end
-    local sb = {
-        Ambient = self._bg.Ambient,
-        Watermark = self._bg.Watermark,
+    self._settings.Background = {
         Image = self._bg.Image,
         ImageAlpha = self._bg.ImageAlpha,
-        WatermarkAlpha = self._bg.WatermarkAlpha,
-        WatermarkColored = self._bg.WatermarkColored,
+        ImageTile = self._bg.ImageTile,
+        ImageTileSize = self._bg.ImageTileSize,
     }
-    local function pack(c) if typeof(c) == "Color3" then return { math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5) } end end
-    sb.Orb1 = pack(self._bg.Orb1)
-    sb.Orb2 = pack(self._bg.Orb2)
-    self._settings.Background = sb
     self:_saveSettingsLater()
 end
 
@@ -2911,23 +2505,9 @@ end
 function Window:GetBackground() return self._bg end
 
 function Window:_retintBackground()
-    for _, o in ipairs(self._orbs or {}) do
-        if o.derived and o.inst.Parent then
-            tintOrb(o.inst, hueShift(ACTIVE.Accent, o.shift))
-        end
-    end
-    if self._backdrop then
-        local wm = self._backdrop:FindFirstChild("Watermark")
-        if wm then
-            for _, d in ipairs(wm:GetChildren()) do
-                if d:IsA("TextLabel") then d.TextColor3 = ACTIVE.Text
-                elseif d:IsA("ImageLabel") then d.ImageColor3 = ACTIVE.Text
-                elseif d:IsA("Frame") and d.Name == "Icon" then tintIcon(d, ACTIVE.Text) end
-            end
-        end
-        local tex = self._backdrop:FindFirstChild("Texture")
-        if tex then tex.ImageColor3 = ACTIVE.Text end
-    end
+    if not self._backdrop then return end
+    local tex = self._backdrop:FindFirstChild("Texture")
+    if tex then tex.ImageColor3 = ACTIVE.Text end
 end
 
 function Window:_showTooltip(str, anchor)
@@ -2960,7 +2540,6 @@ function Window:_saveSettings()
     if ok then FS.write(self._folder .. "/settings.json", raw) end
 end
 
-function Window:_layoutIndicator() end
 local Tab = {}
 Tab.__index = Tab
 local Section = {}
@@ -2973,7 +2552,7 @@ local function nextOrder(w)
     return w._navOrder
 end
 
-local function navIcon(owner, parent, icon, x, color, colored)
+local function navIcon(owner, parent, icon, x, color, colored, iconColor)
     if not icon then return nil, nil, 0 end
     local box = new("Frame", {
         Name = "IconBox",
@@ -2984,7 +2563,7 @@ local function navIcon(owner, parent, icon, x, color, colored)
         ZIndex = 5,
         Parent = parent,
     })
-    local ico, kind = iconAny(box, icon, 17, color, 6, colored)
+    local ico, kind = iconAny(box, icon, 17, color, 6, colored, iconColor)
     return ico, kind, 26
 end
 
@@ -3037,7 +2616,8 @@ local function buildTab(w, container, config, group)
     local inset = group and 12 or 0
     local labelX = 12 + inset
     tab._iconColored = config.Colored == true
-    local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText, tab._iconColored)
+    tab._iconColor = config.IconColor
+    local ico, kind, w_ = navIcon(tab, button, config.Icon, 11 + inset, theme.SubText, tab._iconColored, tab._iconColor)
     if ico then
         tab._icon, tab._iconKind = ico, kind
         if kind == "draw" then bindIcon(tab, ico, "SubText") end
@@ -3124,14 +2704,16 @@ local function buildTab(w, container, config, group)
             if w._activeTab == tab then return end
             tween(button, { BackgroundTransparency = 0.5, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.Text }, MOTION.hover)
-            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover)
+            if tab._iconKind == "image" then
+                if not tab._icon:GetAttribute("IconLocked") then tween(tab._icon, { ImageColor3 = ACTIVE.Text }, MOTION.hover) end
             elseif tab._iconKind == "draw" then tintIcon(tab._icon, ACTIVE.Text) end
         end))
         track(tab, button.MouseLeave:Connect(function()
             if w._activeTab == tab then return end
             tween(button, { BackgroundTransparency = 1 }, MOTION.hover)
             tween(label, { TextColor3 = ACTIVE.SubText }, MOTION.hover)
-            if tab._iconKind == "image" then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover)
+            if tab._iconKind == "image" then
+                if not tab._icon:GetAttribute("IconLocked") then tween(tab._icon, { ImageColor3 = ACTIVE.SubText }, MOTION.hover) end
             elseif tab._iconKind == "draw" then tintIcon(tab._icon, ACTIVE.SubText) end
         end))
     end
@@ -3183,10 +2765,12 @@ function Window:CreateGroup(config)
 
     local labelX = 12
     group._iconColored = config.Colored == true
-    local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText, group._iconColored)
+    group._iconColor = config.IconColor
+    local ico, kind, w_ = navIcon(group, header, config.Icon, 11, theme.SubText, group._iconColored, group._iconColor)
     if ico then
         group._icon, group._iconKind = ico, kind
-        if kind == "draw" then bindIcon(group, ico, "SubText") end
+        if kind == "draw" then bindIcon(group, ico, "SubText")
+        elseif kind == "image" and not group._iconColor then bind(group, ico, "ImageColor3", "SubText") end
         labelX = labelX + w_
     end
 
@@ -3348,9 +2932,11 @@ function Tab:Select(instant)
             BackgroundColor3 = on and ACTIVE.Accent or ACTIVE.SurfaceHover,
         })
         tw(t._label, info, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText })
-        tw(t._bar, instant and TweenInfo.new(0) or MOTION.release, { Size = UDim2.new(0, 3, 0, on and 18 or 0) })
+        tw(t._bar, instant and TweenInfo.new(0) or MOTION.spring, { Size = UDim2.new(0, 3, 0, on and 18 or 0) })
         if t._iconKind == "image" then
-            tw(t._icon, info, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText })
+            if not t._icon:GetAttribute("IconLocked") then
+                tw(t._icon, info, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText })
+            end
         elseif t._iconKind == "draw" then
             tintIcon(t._icon, on and ACTIVE.Accent or ACTIVE.SubText)
         end
@@ -3398,13 +2984,14 @@ function Tab:SetSubtitle(str)
     if self._window._activeTab == self then self._window._pageSub.Text = self._subtitle end
 end
 
-function Tab:SetIcon(icon, colored)
+function Tab:SetIcon(icon, colored, iconColor)
     local box = self._button:FindFirstChild("IconBox")
     if box then box:Destroy() end
     self._icon, self._iconKind = nil, nil
     if colored ~= nil then self._iconColored = colored == true end
+    if iconColor ~= nil then self._iconColor = iconColor or nil end
     local inset = self._group and 12 or 0
-    local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText, self._iconColored)
+    local ico, kind, w_ = navIcon(self, self._button, icon, 11 + inset, ACTIVE.SubText, self._iconColored, self._iconColor)
     if ico then
         self._icon, self._iconKind = ico, kind
         if kind == "draw" then bindIcon(self, ico, "SubText") end
@@ -3741,8 +3328,10 @@ local function baseRow(section, config, opts)
             Parent = inner,
         })
         el._iconColored = config.Colored == true
-        local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5, el._iconColored)
-        if kind == "image" then bind(el, ico, "ImageColor3", "SubText")
+        el._iconColor = config.IconColor
+        local ico, kind = iconAny(box, config.Icon, 18, theme.SubText, 5, el._iconColored, el._iconColor)
+        if kind == "image" then
+            if not el._iconColor then bind(el, ico, "ImageColor3", "SubText") end
         elseif kind == "draw" then bindIcon(el, ico, "SubText") end
         el._icon, el._iconKind, el._iconBox = ico, kind, box
     end
@@ -3877,12 +3466,14 @@ end
 
 function Element:SetCallback(fn) self._callback = fn end
 function Element:SetTooltip(str) self._tooltip = str end
-function Element:SetIcon(icon, colored)
+function Element:SetIcon(icon, colored, iconColor)
     if not self._iconBox then return end
     if self._icon then self._icon:Destroy() end
     if colored ~= nil then self._iconColored = colored == true end
-    local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5, self._iconColored)
-    if kind == "image" then bind(self, ico, "ImageColor3", "SubText")
+    if iconColor ~= nil then self._iconColor = iconColor or nil end
+    local ico, kind = iconAny(self._iconBox, icon, 18, ACTIVE.SubText, 5, self._iconColored, self._iconColor)
+    if kind == "image" then
+        if not self._iconColor then bind(self, ico, "ImageColor3", "SubText") end
     elseif kind == "draw" then bindIcon(self, ico, "SubText") end
     self._icon, self._iconKind = ico, kind
 end
@@ -4614,7 +4205,11 @@ function Section:AddDropdown(config)
             if not IS_MOBILE then
                 track(el, frame.MouseEnter:Connect(function()
                     if not isSelected(opt) then
-                        tween(frame, { BackgroundTransparency = 0.9, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
+                        -- Opaque ElementHover, not a 0.9 wash: the menu it
+                        -- sits in is already an opaque Element panel, so a
+                        -- 10% tint of a near-identical colour composited to
+                        -- no visible change at all and options had no hover.
+                        tween(frame, { BackgroundTransparency = 0, BackgroundColor3 = ACTIVE.ElementHover }, MOTION.hover)
                     end
                 end))
                 track(el, frame.MouseLeave:Connect(function()
@@ -6069,44 +5664,6 @@ buildSettingsTab = function(window, config)
     })
 
     local backdrop = tab:CreateSection("Background")
-
-    backdrop:AddToggle({
-        Name = "Ambient glow",
-        Description = "Soft coloured light behind the interface.",
-        Default = window._bg.Ambient ~= false,
-        FireOnCreate = false,
-        Callback = function(state) window:SetBackground({ Ambient = state }) end,
-    })
-
-    backdrop:AddColorPicker({
-        Name = "Glow colour",
-        Description = "Leave on the accent, or pick your own.",
-        Default = window._bg.Orb1 or ACTIVE.Accent,
-        Callback = function(c) window:SetBackground({ Orb1 = c }) end,
-    })
-
-    backdrop:AddColorPicker({
-        Name = "Second glow",
-        Default = window._bg.Orb2 or hueShift(ACTIVE.Accent, 48),
-        Callback = function(c) window:SetBackground({ Orb2 = c }) end,
-    })
-
-    backdrop:AddButton({
-        Name = "Match glow to accent",
-        Description = "Let both glows follow the accent colour again.",
-        Callback = function()
-            window:SetBackground({ Orb1 = false, Orb2 = false })
-            BPUI:Notify({ Title = "Glow reset", Content = "Following the accent colour.", Type = "Success" })
-        end,
-    })
-
-    backdrop:AddToggle({
-        Name = "Watermark",
-        Description = "Large faint logo behind the page.",
-        Default = window._bg.Watermark ~= false,
-        FireOnCreate = false,
-        Callback = function(state) window:SetBackground({ Watermark = state }) end,
-    })
 
     backdrop:AddInput({
         Name = "Background image",

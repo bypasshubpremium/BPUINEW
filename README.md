@@ -1,6 +1,6 @@
 # BPUI
 
-Windows 11 Fluent UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own, and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
+Windows 11 Fluent UI library for Roblox scripts. Runs on PC and mobile, makes **zero HTTP requests** of its own (the one exception is a picture link a user pastes as their background, fetched once on their request), and every executor-specific function it touches is optional and guarded — so it works on low-level executors too.
 
 ```lua
 local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua"))()
@@ -23,11 +23,15 @@ That is the whole install. One file, one line.
 
 ## What it looks like
 
-A flat near-black panel, fully opaque, with nothing behind the page at all — no ambient glow, no giant watermark, no glass. Depth comes from an even tonal ladder instead: the sidebar is the darkest surface, the page a step above it, each row card a step above that, and every card is closed by a hairline a shade lighter again. On the left: the brand mark, a search field, tabs with real icons and count badges, and collapsible groups with chevrons. On the right: tracked small-caps section headers with an accent tick, a page title underlined by a fading accent hairline, and one rounded card per setting. The accent appears only where something is on, selected or focused. A pulse in the footer keeps it alive, pressing anything ripples from the point of contact, and switching tabs slides the page in.
+A flat near-black panel, fully opaque, with nothing behind the page at all — no ambient glow, no giant watermark, no glass. Depth comes from an even tonal ladder instead: the sidebar is the darkest surface, the page a step above it, each row card a step above that, and every card is closed by a hairline a shade lighter again. On the left: the brand mark, a search field, tabs with real icons and count badges, and collapsible groups with chevrons. On the right: tracked small-caps section headers with an accent tick, a page title underlined by a fading accent hairline, and one rounded card per setting. The accent appears only where something is on, selected or focused. The footer carries a profile chip (avatar and name, hideable), pressing anything gives a brief soft wash over it, and switching tabs slides the page in.
 
-Motion runs on one curve — a fast start with a long, soft settle — from a 130ms hover through to a 280ms page change, so the whole interface moves as one thing rather than a collection of separate animations. The single exception is the nav indicator, which snaps with a small overshoot when you select a tab.
+Everything is flat: no glow halos, no gradient sheen on fills, no bright top edge on borders — every surface is one even colour and every hairline an even line, with a single soft shadow under the window.
 
-The Settings tab lets the user change theme, accent and a tiled background image of their own, and remembers the choices.
+The whole shell runs tight by default — a 760×520 window (down from an earlier, roomier 840×580), a 190px sidebar, 42px rows, and a corner ladder (3/5/7/9/10px) that stays closer to a rectangle than the "round everything 8-12px" look most UI kits default to. Only pills, knobs and dots keep the full round radius; every card and row stays a little sharper than that, on purpose — it's one of the things that keeps the shell from reading as a templated, AI-generated interface. Dropdowns open as a floating popover with a crisp border and no drop shadow, anchored under their pill and flipped above it when there isn't room below, so opening one never shoves the rest of the page down. The popover snaps open with a small deliberate overshoot, its rows fade in a beat behind the reveal, the selected option gets the same accent tick the section headers use, long lists get a filter box and scroll, and scrolling the page closes it the way native menus do. The colour picker opens the same way, as a popover next to its swatch. Neither ever changes the height of its row.
+
+Motion runs on one curve — a fast start with a long, soft settle — from a 130ms hover through to a 280ms page change, so the whole interface moves as one thing rather than a collection of separate animations. The one deliberate exception is a small Back-Out overshoot, reserved for moments that should feel snapped into place: the nav indicator when you select a tab, and a dropdown or colour popover opening. Closing never overshoots — it should get out of the way, not linger.
+
+The Settings tab lets the user change theme, accent and a background image of their own (an id, a Roblox link or a direct picture link), and remembers the choices.
 
 Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — a real [Lucide](https://lucide.dev) icon, sliced out of a spritesheet baked into the library and rendered as a tinted image, so it's a genuine icon rather than a hand-drawn approximation of one. It stays flat monochrome by default, tinted to match the theme; pass `Colored = true` alongside it to tint that one icon with the theme's accent color instead, or `IconColor = Color3.fromRGB(...)` for a fixed color of your own (see **Icons** below). Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted the same way) also work.
 
@@ -37,7 +41,7 @@ The library ships the icon table itself — no lookup is fetched at runtime, unl
 
 ## Why it will not throw `HttpError`
 
-The library never calls `HttpGet`, `request`, `syn.request` or anything like them — the icon table (~340 names) ships embedded in the file, not fetched on load. Named icons render as ordinary `rbxassetid` images from Roblox's own asset servers, the same way any UI's icon would; fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode`, which is a local operation with no network involved.
+The library never calls `HttpGet`, `request`, `syn.request` or anything like them on its own. The single exception is when a user pastes a web picture link as their background: that one file is downloaded once, only then, and cached; ids and Roblox links never touch HTTP. The icon table (~340 names) ships embedded in the file, not fetched on load. Named icons render as ordinary `rbxassetid` images from Roblox's own asset servers, the same way any UI's icon would; fonts are Roblox built-ins, and JSON goes through `HttpService:JSONEncode/Decode`, which is a local operation with no network involved.
 
 The only request in the whole setup is the `HttpGet` **you** write to fetch this file, and that is your executor's request, not the UI's.
 
@@ -60,7 +64,7 @@ Nothing else is required beyond standard Roblox services.
 
 ## Mobile
 
-Detected automatically. The window starts smaller and scales down further on small screens, a draggable bubble opens and closes it, the resize grip is hidden, hover effects are turned off so nothing sticks highlighted, and every control — sliders, the colour wheel, dropdown filters, window dragging — takes touch. A second finger landing somewhere else will not hijack a drag in progress.
+Detected automatically. The window starts smaller and scales down further on small screens, the menu button opens and closes it (tap it; drag it anywhere), the resize grip is hidden, hover effects are turned off so nothing sticks highlighted, and every control — sliders, the colour wheel, dropdown filters, window dragging — takes touch. A second finger landing somewhere else will not hijack a drag in progress.
 
 ---
 
@@ -78,17 +82,18 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `BrandBox` | bool | `false` | Put the brand icon inside an accent-coloured rounded square |
 | `Theme` | string/table | `"Void"` | See Themes |
 | `Accent` | Color3 | theme accent | Highlight colour |
-| `Size` | UDim2/Vector2 | 840×580 (560×400 mobile) | Auto-fitted to the screen |
-| `Scale` | number | `1` | Multiplier applied after the auto-fit |
+| `Size` | UDim2/Vector2 | 760×520 (520×370 mobile) | Auto-fitted to the screen |
+| `Scale` | number | `1` | Multiplier applied after the auto-fit. On desktop the auto-fit already scales the window (and toasts) up to a comfortable physical size on larger screens: about 1.22× at 1080p, capped at 1.4×, and never larger than the screen allows |
 | `RememberSize` | bool | `true` | Restore the last resized size |
-| `SidebarWidth` | number | 218 (156 mobile) | |
+| `SidebarWidth` | number | 190 (140 mobile) | |
 | `ToggleKey` | KeyCode/string | `RightShift` | Show/hide key on PC |
-| `FloatingButton` | bool | mobile only | Force the bubble on PC too |
+| `MenuButton` | bool | `true` | The small draggable open/close button (see **Menu button**). `FloatingButton` is accepted as an older alias |
+| `MenuButtonIcon` | string | `"menu"` | Glyph on the menu button |
 | `FloatingText` | string | first two letters | Text inside the bubble |
 | `Resizable` | bool | PC only | Bottom-right resize grip |
 | `Search` | bool | `true` | Search field that filters every element in every tab |
 | `Transparency` | number | `0` | Window background transparency. Opaque by default; raise it only if you also turn `Acrylic` on |
-| `Background` | table | see Background | Optional tiled texture behind the page |
+| `Background` | table | see Background | Optional picture behind the page (id, Roblox link or image link) |
 | `SectionStyle` | string | `"Caps"` | `"Caps"` for tracked uppercase headers, `"Title"` for sentence case |
 | `Acrylic` | bool | `false` | Blur the game behind the window while it is open (Windows 11 Mica feel). Off by default so gameplay stays readable |
 | `AcrylicStrength` | number | `14` | Blur radius when `Acrylic` is on |
@@ -105,17 +110,34 @@ Detected automatically. The window starts smaller and scales down further on sma
 | `KeySystem` | table | — | See Key system |
 | `OnDestroy` | function | — | Called when the window unloads |
 | `Footer` | string | `BPUI vX` | Bottom of the sidebar |
-| `FooterName` | string | player's display name | Shown above the footer text, next to the pulse |
+| `FooterName` | string | player's display name | Shown in the footer profile chip, next to the avatar. The user can override it (or hide it) in Settings → Privacy |
+| `Watermark` | bool/table | on | On-screen tag with the hub name, FPS and ping. `false` turns it off; a table sets defaults: `{ Text = "My Hub", ShowFPS = true, ShowPing = true }`. See **Watermark** below |
 
 **Methods**
 
-`CreateTab(config)` · `CreateGroup(config)` · `SelectTab(tabOrName)` · `Show()` · `Hide()` · `Toggle()` · `SetVisible(bool)` · `Minimize(state?)` · `Search(text)` · `Dialog(config)` · `SetTitle(text)` · `SetSubtitle(text)` · `SetToggleKey(key)` · `SetFloatingButtonVisible(bool)` · `Notify(config)` · `SaveConfig(name)` · `LoadConfig(name)` · `GetConfigs()` · `DeleteConfig(name)` · `SetAutoLoad(name|nil)` · `GetAutoLoad()` · `LoadAutoConfig()` · `SetBackground(table)` · `Destroy()` (alias `Unload()`)
+`CreateTab(config)` · `CreateGroup(config)` · `SelectTab(tabOrName)` · `Show()` · `Hide()` · `Toggle()` · `SetVisible(bool)` · `Minimize(state?)` · `Search(text)` · `Dialog(config)` · `SetTitle(text)` · `SetSubtitle(text)` · `SetToggleKey(key)` · `SetFloatingButtonVisible(bool)` · `Notify(config)` · `SaveConfig(name)` · `LoadConfig(name)` · `GetConfigs()` · `DeleteConfig(name)` · `SetAutoLoad(name|nil)` · `GetAutoLoad()` · `LoadAutoConfig()` · `SetBackground(table)` · `Destroy()` (alias `Unload()`) · `SetMenuButtonVisible(bool)` · `SetWatermark(text)` · `SetWatermarkVisible(bool)` · `SetWatermarkStats(showFps, showPing)` · `SetDisplayName(text)` · `SetNameHidden(bool)`
 
 ### `Window:CreateTab(config)` → Tab
 
 Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Colored = false, IconColor = nil, Badge = 3 }`, or just a string. `Icon` is a named icon, emoji or an `rbxassetid`; `Colored` tints a named icon with the accent color, `IconColor` pins it to a fixed color of your own (see Icons); `Badge` is a count or short text shown in a pill at the right.
 
 Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored, iconColor)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+
+### Watermark
+
+A small information tag pinned near the top-left of the screen: the hub's icon (drawn bare, if the window has one), its name, then live FPS and ping (each coloured green / amber / red by how healthy it is). The numbers sit in fixed-width slots, so the tag never changes width as they tick. Drag it anywhere and it stays there next time. It's information only — it doesn't open or close anything.
+
+Users can change all of it in **Settings → Watermark**: show/hide it, rename its text (empty falls back to the hub name), and turn FPS and ping on or off. Scripts can do the same with `Window:SetWatermark(text)`, `SetWatermarkVisible(bool)` and `SetWatermarkStats(showFps, showPing)`. Pass `Watermark = false` to `CreateWindow` to leave it out entirely.
+
+### Menu button
+
+A separate, plain button — a small rounded square with a menu glyph, in the window's own colours — whose only job is opening and closing the window, on PC and mobile alike. By default it sits at the top-left with the watermark beside it; drag it anywhere and it stays there. While the window is closed a small accent dot sits on its corner. The window's minimise button closes the window (the menu button brings it back). Opening and closing play in place: the window rises a few pixels while its contents fade in, and does the reverse on close — only positions and transparencies animate, nothing is rescaled, so it stays smooth.
+
+Show/hide it in **Settings → Interface → Menu button**, or with `Window:SetMenuButtonVisible(bool)`; `MenuButton = false` in `CreateWindow` starts it hidden, and `MenuButtonIcon` picks a different glyph.
+
+### Privacy
+
+The sidebar footer is a profile chip: the player's avatar headshot and display name (a lettered disc stands in while the headshot loads, or if the executor can't load thumbnails). In **Settings → Privacy** a user can switch on **Hide my name** (streamer mode: name and avatar hidden) and/or set a **Display name** of their own that's shown instead. Scripts: `Window:SetNameHidden(bool)`, `Window:SetDisplayName(text)`.
 
 ### `Window:CreateGroup(config)` → Group
 
@@ -127,7 +149,9 @@ local aim = combat:CreateTab({ Name = "Aimbot", Icon = "crosshair" })
 local esp = combat:CreateTab({ Name = "ESP", Icon = "eye" })
 ```
 
-Clicking the header folds the group with an animation and rotates its chevron. Selecting a tab inside a closed group opens it. Methods: `CreateTab(config)` · `Open()` · `Close()` · `Toggle()` · `SetOpen(bool)` · `IsOpen()` · `SetName(text)` · `Destroy()`. Search hides a group whose tabs have no matches.
+Clicking the header folds the group with an animation and rotates its chevron. Selecting a tab inside a closed group opens it. Methods: `CreateTab(config)` · `Open()` · `Close()` · `Toggle()` · `SetOpen(bool)` · `IsOpen()` · `SetName(text)` · `Destroy()`. Search hides a group whose tabs have no matches, and if the page you're on has no hits it jumps to the first page that does. A page with nothing to show (a tab with no sections yet, or no search matches) displays a small empty state instead of a blank panel.
+
+Nested tabs are drawn as a real tree: each child's whole button (highlight and accent bar included) is indented, and a connector trunk runs straight down from the centre of the group's icon, with an elbow reaching across to every child. The active child's elbow takes the accent colour, and the trunk ends in a corner at the last visible child. The connector belongs to each tab row, so it stays correct as search hides and shows tabs.
 
 ### Icons
 
@@ -170,8 +194,8 @@ Shared methods: `Set(value, silent)` (aliases `SetValue`, `Update`) · `Get()` �
 | `AddToggle` | `Default` | `state` | boolean |
 | `AddSlider` | `Min` `Max` `Default` `Increment` `Suffix` `Typeable` | number | number |
 | `AddDropdown` | `Options` `Default` `Multi` `Searchable` | option or table | string / table |
-| `AddInput` | `Placeholder` `Default` `Numeric` `MaxLength` `Width` `ClearOnFocus` `CallbackOnChange` `RemoveTextAfterFocusLost` | `text, enterPressed` | string |
-| `AddKeybind` | `Default` `Mode` (`Press`/`Toggle`/`Hold`) `OnChanged` | Press: nothing · Toggle: `state` · Hold: `true`/`false` | key name |
+| `AddInput` | `Placeholder` `Default` `Numeric` `MaxLength` `Width` `ClearOnFocus` `CallbackOnChange` `RemoveTextAfterFocusLost` (`Numeric`/`MaxLength` are enforced as you type; a rejected key blinks the outline red) | `text, enterPressed` | string |
+| `AddKeybind` | `Default` `Mode` (`Press`/`Toggle`/`Hold`) `OnChanged` (click the pill, it reads "Press a key" with a breathing outline; Esc cancels, Backspace clears) | Press: nothing · Toggle: `state` · Hold: `true`/`false` | key name |
 | `AddColorPicker` | `Default` (Color3 / hex / `{r,g,b}`) | Color3 | Color3 |
 | `AddLabel` | `Text` `Style` (`Accent`/`Sub`/`Success`/`Warning`/`Error`) `Center` `Bold` `TextSize` | — | string |
 | `AddParagraph` | `Title` `Content` | — | string |
@@ -244,18 +268,28 @@ If a config loads before some elements exist — because your script yields, say
 
 ### Background
 
-Nothing is drawn behind the page by default. The only thing this table can add is a texture of your own:
+Nothing is drawn behind the page by default. The only thing this table can add is a picture of your own:
 
 ```lua
 Background = {
-    Image = 123456789,                     -- tiled texture (rbxassetid), omit for none
-    ImageAlpha = 0.92,                     -- 1 is invisible, 0 is solid
-    ImageTileSize = 96,
-    ImageTile = false,                     -- false crops one copy instead of tiling
+    Image = "123456789",                   -- id, Roblox link or direct .png/.jpg link; omit for none
+    ImageAlpha = 0.7,                      -- 1 is invisible, 0 is solid
+    ImageTile = false,                     -- true repeats it as a small pattern tinted to the theme
+    ImageTileSize = 96,                    -- tile size when ImageTile is on
 }
 ```
 
-`Window:SetBackground(partial)` changes any of these live and remembers the result. The Settings tab exposes the same two controls to the user.
+`Image` accepts any of these, and so does the "id or link" box in the Settings tab:
+
+| You paste | What happens |
+|---|---|
+| `123456789` or `rbxassetid://123456789` | Loaded as an image. If it's a **Decal** id (what the Creator Store usually gives you), the Decal is read to find the image inside it, so both kinds work |
+| `https://create.roblox.com/store/asset/123456789/...` or a `roblox.com/library/...` link | The id is taken from the link, then as above |
+| `https://.../picture.png` or `.jpg` | Downloaded once through your executor, saved in the config folder and shown with `getcustomasset`. Needs an executor with `request`/`HttpGet`, `writefile` and `getcustomasset`; if one is missing you get a toast saying so |
+
+A picture is cropped to fill the page and keeps its own colours; `ImageTile = true` instead repeats it as a pattern tinted to the theme. If an image can't be loaded, a warning toast says why rather than nothing happening.
+
+`Window:SetBackground(partial)` changes any of these live and remembers the result. The Settings tab exposes the image box, an opacity slider and a "Tile image" toggle.
 
 The ambient corner glows and the giant page watermark were removed in 2.7.0 along with their config keys (`Ambient`, `Orb1`, `Orb2`, `Orb3`, `OrbSize`, `OrbOpacity`, `Watermark`, `WatermarkAlpha`, `WatermarkColored`). Passing any of them is harmless — they are simply ignored — but nothing will be drawn.
 

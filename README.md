@@ -19,6 +19,10 @@ Section:AddToggle({
 
 That is the whole install. One file, one line.
 
+**New here? Read the [Guide](GUIDE.md).** It walks through every element, configs, the key system and the problems people hit most ("my tab is empty", missing icons, callbacks not firing). Runnable scripts are in [`docs/examples`](docs/examples), and [`AI-PROMPT.md`](AI-PROMPT.md) is a prompt that makes ChatGPT/Claude/Gemini write correct BPUI code.
+
+This README is the reference: every option and method, in less detail.
+
 ---
 
 ## What it looks like
@@ -35,7 +39,7 @@ The Settings tab lets the user change theme, accent and a background image of th
 
 Tabs, groups and rows all take an `Icon`. The recommended form is a **named icon** — `Icon = "eye"` — a real [Lucide](https://lucide.dev) icon, sliced out of a spritesheet baked into the library and rendered as a tinted image, so it's a genuine icon rather than a hand-drawn approximation of one. It stays flat monochrome by default, tinted to match the theme; pass `Colored = true` alongside it to tint that one icon with the theme's accent color instead, or `IconColor = Color3.fromRGB(...)` for a fixed color of your own (see **Icons** below). Emoji (`Icon = "🎯"`, rendered in colour by Roblox, but newer emoji are missing from its font) and `rbxassetid` images (tinted the same way) also work.
 
-The library ships the icon table itself — no lookup is fetched at runtime, unlike libraries that pull their icon list down over HTTP on first load. Internal chrome (the close cross, the chevrons, the checkmarks, the magnifier, the toast badges) stays exactly what it always was: composed from rotated frames, no asset involved, and shadows are stacked frames rather than an image. Named/emoji/`rbxassetid` icons render as ordinary Roblox images, the same way any UI's icon would — an unknown name falls back to rendering the text/emoji itself rather than a missing-glyph box, and a bad custom `rbxassetid` behaves like any bad asset id would anywhere else in Roblox.
+The library ships the icon table itself — no lookup is fetched at runtime, unlike libraries that pull their icon list down over HTTP on first load. Internal chrome (the close cross, the chevrons, the checkmarks, the magnifier, the toast badges) stays exactly what it always was: composed from rotated frames, no asset involved, and shadows are stacked frames rather than an image. Named/emoji/`rbxassetid` icons render as ordinary Roblox images, the same way any UI's icon would — an unknown name draws nothing (and prints `[BPUI] Unknown icon "..."` once) instead of a missing-glyph box, with the label moving over so no gap is left; a tab `rbxassetid` that fails to load is removed the same way.
 
 ---
 
@@ -121,7 +125,7 @@ Detected automatically. The window starts smaller and scales down further on sma
 
 Takes `{ Name = "Main", Subtitle = "shown in the header", Icon = "🏠", Colored = false, IconColor = nil, Badge = 3 }`, or just a string. `Icon` is a named icon, emoji or an `rbxassetid`; `Colored` tints a named icon with the accent color, `IconColor` pins it to a fixed color of your own (see Icons); `Badge` is a count or short text shown in a pill at the right.
 
-Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored, iconColor)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab — an untitled section is created for you.
+Methods: `CreateSection(name)` · `Select()` · `SetName(text)` · `SetSubtitle(text)` · `SetIcon(icon, colored, iconColor)` · `SetBadge(value|nil)` · `Destroy()`. Every `Add*` element method also exists directly on a tab: the element goes into the tab's most recent section, or an untitled one if the tab has none yet.
 
 ### Watermark
 
@@ -170,7 +174,7 @@ tag target terminal thumbs-up timer trash trending-up trophy truck upload user u
 volume wallet wand-2 wifi wrench x zap
 ```
 
-That's a taste of ~340 — the full list is `BPUI.Icons` (a `name -> true` set you can `pairs()` over), or just try the [Lucide icon name](https://lucide.dev/icons) you want; if it's a real Lucide icon it's very likely in there. Names are case-insensitive and may be prefixed `lucide:`. A handful of shorter names carried over from earlier versions are kept as aliases onto their closest real icon, so old scripts keep working unchanged: `alert`/`warning` → `triangle-alert`, `chart` → `bar-chart-3`, `config` → `settings`, `gear` → `cog`, `dice` → `dices`, `door` → `door-open`, `esp` → `scan-eye`, `fire` → `flame`, `flask` → `flask-conical`, `fps` → `gauge-circle`, `grid` → `grid-2x2`, `money` → `banknote`, `paw` → `paw-print`, `question` → `circle-help`, `refresh` → `refresh-cw`, `thumbsup` → `thumbs-up`, `tool` → `wrench`. An unrecognized name falls back to rendering as literal text.
+That's a taste of ~340 — the full list is `BPUI.Icons` (a `name -> true` set you can `pairs()` over), or just try the [Lucide icon name](https://lucide.dev/icons) you want; if it's a real Lucide icon it's very likely in there. Names are case-insensitive and may be prefixed `lucide:`. A handful of shorter names carried over from earlier versions are kept as aliases onto their closest real icon, so old scripts keep working unchanged: `alert`/`warning` → `triangle-alert`, `chart` → `bar-chart-3`, `config` → `settings`, `gear` → `cog`, `dice` → `dices`, `door` → `door-open`, `esp` → `scan-eye`, `fire` → `flame`, `flask` → `flask-conical`, `fps` → `gauge-circle`, `grid` → `grid-2x2`, `money` → `banknote`, `paw` → `paw-print`, `question` → `circle-help`, `refresh` → `refresh-cw`, `thumbsup` → `thumbs-up`, `tool` → `wrench`. Common guesses map to the right icon too (`house`, `player`, `teleport`, `shop`, `aimbot`, `lightning`, `coin`, `tree`, `cursor` and more). An unrecognized name draws no icon and prints a one-time `[BPUI] Unknown icon` warning; emoji and one- or two-character glyphs still render as text.
 
 By default every icon renders flat monochrome, tinted to match the theme (or the row's hover/selected state). Pass `Colored = true` next to any `Icon` — on `CreateWindow` (the brand mark, as `IconColored`), `CreateTab`, `CreateGroup` or any row's `Add*` config — to tint that one icon with the theme's accent color instead. For a fixed color of your own, regardless of theme, hover or selection, pass `IconColor = Color3.fromRGB(...)` alongside it — it wins over both the theme default and `Colored`, and once set it stays exactly that color through every later theme change, hover or tab selection. `SetIcon(icon, colored, iconColor)` on a tab, group or element updates all three together at runtime; passing `nil` for `colored`/`iconColor` leaves that one as it was. Monochrome stays the default everywhere, so nothing changes unless you ask for color.
 
@@ -325,11 +329,25 @@ BPUI:SetTheme("Lime")
 
 ### Library helpers
 
-`BPUI:Notify()` · `BPUI:SetTheme()` · `BPUI:SetAccent()` · `BPUI:GetThemes()` · `BPUI:GetFlag()` · `BPUI:SetFlag()` · `BPUI:Destroy()` · `BPUI.Flags` · `BPUI.IsMobile` · `BPUI.Version` · `BPUI.SafeMode` · `BPUI.CopyToClipboard(text)` · `BPUI.FileSystem.Available`
+`BPUI:Notify()` · `BPUI:SetTheme()` · `BPUI:SetAccent()` · `BPUI:GetThemes()` · `BPUI:GetFlag()` · `BPUI:SetFlag()` · `BPUI:Destroy()` · `BPUI.Flags` (alias `BPUI.Options`) · `BPUI.IsMobile` · `BPUI.Version` · `BPUI.SafeMode` · `BPUI.ShowErrors` · `BPUI.CopyToClipboard(text)` · `BPUI.FileSystem.Available`
 
 ### Safe mode
 
-`BPUI.SafeMode` is on by default. If an element constructor throws — an odd executor, a bad config — the library warns and hands back a harmless stub so the rest of your script keeps running. Turn it off while you are developing to get the real error and stack trace.
+`BPUI.SafeMode` is on by default. If an element constructor throws — an odd executor, a bad config — the library warns and hands back a harmless stub so the rest of your script keeps running, and a short red note appears in that section so the problem is visible. Turn it off while you are developing to get the real error and stack trace. `BPUI.ShowErrors = false` keeps the warnings in the console but leaves the notes out of the page.
+
+### Scripts written for other libraries
+
+Since 2.15, BPUI accepts the method and option names of Rayfield, Orion, Fluent, WindUI, Linoria and Kavo, so a script written for one of them usually runs after swapping the loader line:
+
+- **Methods:** `Window:Tab/AddTab/MakeTab/NewTab`, `Tab:Section/AddSection/AddLeftGroupbox/NewSection`, and every element under `Add*`, `Create*`, `Make*`, `New*` or its bare name (`Toggle`, `Textbox`, `Bind`, `Colorpicker`, `KeyPicker`, `Text`, `Separator`...).
+- **Positional forms:** `("Flag", {...})`, `("Name", callback)` and `("Name", "Info", ...)`.
+- **Keys** in any case (`name`, `callback`, `value`), plus their usual synonyms: `Title`/`Text` → `Name`, `Desc` → `Description`, `CurrentValue`/`Value` → `Default`, `Range` → `Min`/`Max`, `Values` → `Options`, `MultipleOptions` → `Multi`, `CurrentOption`, `CurrentKeybind`, `PlaceholderText`, and Fluent's `Rounding` and index defaults.
+- **Rayfield's single-choice dropdown:** when the script uses Rayfield's `CurrentOption` key, the callback gets a table as Rayfield does. Otherwise it gets a string.
+- **Tab-level elements:** elements called on a tab after `Tab:CreateSection(...)` go into that section, the way Rayfield lays them out.
+- **Unknown names:** a constructor BPUI doesn't have (`AddColorWheel`, say) is skipped with a `[BPUI]` warning, a red note in the section and a stub return value, so the script carries on instead of stopping with an empty tab.
+- **Dot calls:** `Window.CreateTab(...)` warns instead of crashing.
+
+New code should still use BPUI's own names ([Guide §15](GUIDE.md#15-coming-from-another-library) has the table).
 
 ---
 
@@ -348,5 +366,5 @@ https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/main/BPUI.lua
 GitHub caches raw files for a few minutes, so while you are testing add a throwaway query string (`?v=2`) to force a fresh copy. For anything people depend on, tag a release and load from the tag rather than `main` — a bad commit then cannot reach anyone already using it:
 
 ```lua
-local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/v2.0.0/BPUI.lua"))()
+local BPUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/bypasshubpremium/BPUINEW/v2.15.0/BPUI.lua"))()
 ```

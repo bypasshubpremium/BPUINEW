@@ -1,5 +1,5 @@
 local BPUI = {
-    Version = "2.14.0",
+    Version = "2.15.0",
     SafeMode = true,
     Flags = {},
     Windows = {},
@@ -930,6 +930,38 @@ local ICON_ALIASES = {
     thumbsup = "thumbs-up",
     tool = "wrench",
     warning = "triangle-alert",
+    -- common guesses people type that Lucide spells differently
+    house = "home",
+    eggs = "egg",
+    player = "user",
+    person = "person-standing",
+    run = "footprints",
+    running = "footprints",
+    walk = "footprints",
+    teleport = "map-pin",
+    tp = "map-pin",
+    coin = "coins",
+    ["dollar-sign"] = "circle-dollar-sign",
+    dollar = "circle-dollar-sign",
+    cash = "banknote",
+    magic = "wand",
+    lightning = "zap",
+    bolt = "zap",
+    tree = "tree-pine",
+    moon = "sun-moon",
+    pickaxe = "hammer",
+    ["mouse-pointer"] = "mouse",
+    cursor = "mouse",
+    aim = "crosshair",
+    aimbot = "crosshair",
+    visuals = "eye",
+    visual = "eye",
+    misc = "list",
+    main = "home",
+    farm = "tree-pine",
+    autofarm = "repeat",
+    shop = "shopping-cart",
+    store = "shopping-cart",
 }
 
 local function spriteFor(name)
@@ -978,6 +1010,48 @@ end
 -- given, wins over both and is remembered on the instance (IconLocked) so
 -- later hover/selection/theme retinting -- which always goes through
 -- tintIcon or a direct ImageColor3 tween -- leaves it alone.
+local warnedOnce = {}
+local function warnOnce(key, msg)
+    if warnedOnce[key] then return end
+    warnedOnce[key] = true
+    warn(msg)
+end
+
+-- Whether iconAny() would draw anything for this value. Callers that reserve
+-- room for an icon ask first, so a bad name leaves no empty gap. An ASCII word
+-- that isn't a known icon (a typo, or a name from another library's icon
+-- set) would otherwise print itself into an 18px box; it is dropped with a
+-- one-time warning so the author can fix it. Emoji and one or two character
+-- glyphs still render as text.
+local function iconUsable(icon)
+    if icon == nil or icon == "" or icon == false then return false end
+    if type(icon) == "number" then return true end
+    if type(icon) ~= "string" then return false end
+    local key = icon:lower():gsub("^lucide:", ""):gsub("^icon:", "")
+    if spriteFor(key) or isAssetIcon(icon) then return true end
+    if #icon > 2 and not icon:find("[\128-\255]") then
+        warnOnce("icon:" .. icon, "[BPUI] Unknown icon \"" .. icon .. "\" -- use a Lucide name (see BPUI.Icons), an emoji, or an rbxassetid. No icon is shown.")
+        return false
+    end
+    return true
+end
+
+-- Calls fn() if an image asset turns out not to load (a deleted, private or
+-- mistyped rbxassetid), so the owner can drop the empty slot it reserved.
+local function whenAssetFails(img, fn)
+    if typeof(img) ~= "Instance" then return end
+    task.spawn(function()
+        local status
+        pcall(function()
+            game:GetService("ContentProvider"):PreloadAsync({ img }, function(_, st) status = st end)
+        end)
+        if status == Enum.AssetFetchStatus.Failure and img.Parent then
+            warnOnce("asset:" .. tostring(img.Image), "[BPUI] Icon " .. tostring(img.Image) .. " failed to load (deleted, private or not an image). It is hidden.")
+            fn()
+        end
+    end)
+end
+
 local function iconAny(parent, icon, size, color, zindex, colored, iconColor)
     if icon == nil or icon == "" then return nil, nil end
     zindex = zindex or 5
@@ -1008,6 +1082,12 @@ local function iconAny(parent, icon, size, color, zindex, colored, iconColor)
         if iconColor then i:SetAttribute("IconLocked", true) end
         return i, "image"
     end
+    -- An ASCII word that isn't a known icon (a typo, or a name from another
+    -- library's icon set) would otherwise print itself into an 18px box.
+    -- Draw nothing -- the label then sits where the icon would have been --
+    -- and say why once, so the author can fix the name. Emoji and one or two
+    -- character glyphs still render as text.
+    if not iconUsable(icon) then return nil, nil end
     local t = new("TextLabel", {
         Name = "Icon",
         BackgroundTransparency = 1,
@@ -1938,7 +2018,7 @@ function BPUI:CreateWindow(config)
         corner(mark, RADIUS.md)
         bind(self, mark, "BackgroundColor3", "Accent")
         stroke(mark, Color3.new(1, 1, 1), 1, 0.78)
-    elseif config.Icon then
+    elseif iconUsable(config.Icon) then
         markSize = 22
         mark = new("Frame", {
             Name = "Mark",
@@ -1951,7 +2031,7 @@ function BPUI:CreateWindow(config)
         })
     end
 
-    if config.Icon and mark then
+    if iconUsable(config.Icon) and mark then
         local ico, kind = iconAny(mark, config.Icon, useBox and 18 or 22, useBox and theme.AccentText or theme.Text, 5, config.IconColored == true, config.IconColor)
         if kind == "image" then
             ico.Size = UDim2.new(1, useBox and -10 or -2, 1, useBox and -10 or -2)
@@ -2922,7 +3002,7 @@ function Window:_buildWatermark(config)
     -- The hub's own icon, drawn bare in the text colour -- no filled
     -- accent square behind it (with a white accent that read as a blank
     -- white box). No icon configured means no mark at all, just the name.
-    if config.Icon then
+    if iconUsable(config.Icon) then
         local box = new("Frame", {
             Name = "Mark",
             BackgroundTransparency = 1,
@@ -3318,7 +3398,7 @@ local function nextOrder(w)
 end
 
 local function navIcon(owner, parent, icon, x, color, colored, iconColor)
-    if not icon then return nil, nil, 0 end
+    if not iconUsable(icon) then return nil, nil, 0 end
     local box = new("Frame", {
         Name = "IconBox",
         BackgroundTransparency = 1,
@@ -3437,6 +3517,11 @@ local function buildTab(w, container, config, group)
         tab._icon, tab._iconKind = ico, kind
         if kind == "draw" then bindIcon(tab, ico, "SubText") end
         labelX = labelX + w_
+    end
+    if kind == "image" then
+        whenAssetFails(ico, function()
+            if tab._icon == ico and tab.SetIcon then tab:SetIcon(nil) end
+        end)
     end
 
     local label = text({
@@ -3983,6 +4068,7 @@ function Section:SetVisible(v)
 end
 
 function Section:Destroy()
+    self._destroyed = true
     for i = #self._elements, 1, -1 do
         local e = self._elements[i]
         if e and e.Destroy then pcall(function() e:Destroy() end) end
@@ -4207,7 +4293,7 @@ function Window:SetFloatingButtonVisible(v)
 end
 Window.SetMenuButtonVisible = Window.SetFloatingButtonVisible
 
-function Window:Notify(config) return BPUI:Notify(config) end
+function Window:Notify(...) return BPUI:Notify(...) end
 
 function Window:Search(query)
     closeOpenPanel(nil)
@@ -4327,7 +4413,7 @@ local function baseRow(section, config, opts)
         Parent = row,
     })
     local iconInset = 0
-    if config.Icon then
+    if iconUsable(config.Icon) then
         iconInset = 28
         local box = new("Frame", {
             Name = "RowIcon",
@@ -6880,7 +6966,13 @@ buildSettingsTab = function(window, config)
         Name = config.SettingsName or "Settings",
         Subtitle = "Interface, themes and saved configurations",
         Icon = config.SettingsIcon or "sliders",
+        __settings = true,
     })
+    -- Settings is built a frame after CreateWindow returns. A script that
+    -- yields before making its own tabs would otherwise see Settings land
+    -- in the middle of the sidebar (and open first); pin it to the end.
+    tab._isSettings = true
+    if tab._button then tab._button.LayoutOrder = 1000000 end
 
     local appearance = tab:CreateSection("Appearance")
 
@@ -7186,5 +7278,581 @@ BPUI.Section = Section
 BPUI.Element = Element
 BPUI.Motion = MOTION
 BPUI.Radius = RADIUS
+---------------------------------------------------------------- compatibility
+-- People arrive with scripts written for other UI libraries, or with code an
+-- AI wrote from memory of one: `Window:Tab{}`, `tab:CreateToggle{name=...,
+-- callback=...}`, `Tab:AddToggle("Flag", {Title=...})`. Before this layer a
+-- single unknown method threw "attempt to call a nil value" after the tab was
+-- made, which left users staring at an empty page. Now:
+--   * the usual method names from other libraries are aliases of ours;
+--   * config keys are accepted in any case and under their common synonyms;
+--   * positional forms (name, callback) / (flag, config) are understood;
+--   * an element method BPUI doesn't have warns once, puts a visible note in
+--     the section, and returns a harmless stub so the rest of the script runs.
+
+local KEY_SYNONYMS = {
+    -- identity
+    Title = "Name", Text = "Name", Label = "Name",
+    Desc = "Description", Info = "Description", SubText = "Description", Subtitle = "Description",
+    -- behaviour
+    Func = "Callback", Function = "Callback", OnClick = "Callback", OnChange = "Callback",
+    Changed = "Callback", Clicked = "Callback", Pressed = "Callback",
+    Id = "Flag", ID = "Flag", Pointer = "Flag", Key = "Flag",
+    Image = "Icon",
+    Disabled = "Locked",
+    -- values
+    Value = "Default", CurrentValue = "Default", CurrentOption = "Default",
+    CurrentKeybind = "Default", Current = "Default", State = "Default",
+    Keybind = "Default", Bind = "Default", Hold = nil,
+    Values = "Options", List = "Options", Items = "Options", Choices = "Options",
+    MultiSelect = "Multi", MultipleOptions = "Multi", Multiple = "Multi", AllowMultiple = "Multi",
+    Minimum = "Min", Maximum = "Max", Step = "Increment", Precise = nil,
+    ValueName = "Suffix", Unit = "Suffix",
+    PlaceholderText = "Placeholder", PlaceHolder = "Placeholder",
+    CharacterLimit = "MaxLength", ClearTextOnFocus = "ClearOnFocus",
+    NumbersOnly = "Numeric", NumberOnly = "Numeric",
+    Variant = "Style",
+}
+
+-- Keys an element must NOT have renamed, per kind (a Label's Text is its
+-- text, a Paragraph's Title is its title, a keybind's Key is its key).
+local KEEP = {
+    Label = { Text = true },
+    Paragraph = { Title = true, Text = true, Desc = true, Description = true },
+    Keybind = { Key = true, Hold = true },
+}
+
+local function isArray(t)
+    return type(t) == "table" and (t[1] ~= nil or next(t) == nil)
+end
+
+local function canon(config, kind)
+    if type(config) ~= "table" then return config end
+    if config.__bpuiCanon then return config end
+    local out = {}
+    for k, v in pairs(config) do out[k] = v end
+    local keep = KEEP[kind] or {}
+    for k, v in pairs(config) do
+        if type(k) == "string" then
+            local upper = k:sub(1, 1):upper() .. k:sub(2)
+            -- lowercase / camelCase spelling of a key we already know
+            if upper ~= k and out[upper] == nil then out[upper] = v end
+            local syn = KEY_SYNONYMS[upper]
+            if syn and not keep[upper] and out[syn] == nil then out[syn] = v end
+        end
+    end
+
+    if kind == "Slider" then
+        if type(out.Range) == "table" then
+            out.Min = out.Min or out.Range[1]
+            out.Max = out.Max or out.Range[2]
+        end
+        -- Fluent's Rounding is a number of decimals, not a step
+        if out.Increment == nil and type(out.Rounding) == "number" then
+            out.Increment = out.Rounding <= 0 and 1 or 10 ^ -out.Rounding
+        end
+        if type(out.Default) ~= "number" then out.Default = tonumber(out.Default) end
+    elseif kind == "Dropdown" then
+        -- {a=true, b=true} (Fluent multi default) -> {"a","b"}
+        if type(out.Default) == "table" and not isArray(out.Default) then
+            local list = {}
+            for k, on in pairs(out.Default) do if on then list[#list + 1] = k end end
+            out.Default = list
+        end
+        -- a single-select default given as {"a"} or {} (Rayfield)
+        if not out.Multi and type(out.Default) == "table" then out.Default = out.Default[1] end
+        -- Fluent/Linoria: Default = 2 means the second option
+        if type(out.Default) == "number" and type(out.Options) == "table" then
+            local asText = false
+            for _, o in ipairs(out.Options) do if tostring(o) == tostring(out.Default) then asText = true end end
+            if not asText then out.Default = out.Options[out.Default] end
+        end
+        -- Rayfield hands a single-select callback a table ({"a"}); scripts
+        -- written for it read Options[1]. Keep that shape for them.
+        local rayfieldShape = config.CurrentOption ~= nil or config.MultipleOptions ~= nil
+        if rayfieldShape and not out.Multi and type(out.Callback) == "function" then
+            local cb = out.Callback
+            out.Callback = function(v) return cb(v ~= nil and { v } or {}) end
+        end
+    elseif kind == "Button" then
+        local st = type(out.Style) == "string" and out.Style:lower()
+        if st == "primary" or st == "accent" then out.Style = "Accent"
+        elseif st == "danger" or st == "destructive" or st == "red" then out.Style = "Danger"
+        elseif st then out.Style = "Default" end
+    elseif kind == "Keybind" then
+        if out.Default == nil and out.Key ~= nil and type(out.Key) ~= "boolean" then out.Default = out.Key end
+        if type(out.Mode) == "string" then
+            local m = out.Mode:lower()
+            out.Mode = (m == "toggle" and "Toggle") or (m == "hold" and "Hold") or "Press"
+        end
+        if out.Hold == true or out.HoldToInteract == true then out.Mode = "Hold" end
+    elseif kind == "ColorPicker" then
+        if out.Default == nil and typeof(out.Color) == "Color3" then out.Default = out.Color end
+    elseif kind == "Label" then
+        out.Text = out.Text or out.Name or out.Title or out.Content or out.Label
+    elseif kind == "Paragraph" then
+        out.Title = out.Title or out.Name or out.Header
+        out.Content = out.Content or out.Text or out.Desc or out.Description or out.Body
+    end
+    out.__bpuiCanon = true
+    return out
+end
+
+-- Turns every calling convention we have seen into one config table:
+--   ({...})                 the normal form
+--   ("Flag", {...})         Fluent / Linoria: id first, config second
+--   ("Name", fn)            Orion-ish shorthand for buttons
+--   ("Name", "Info", fn)    Kavo-style
+--   ("Name")                just a name
+local function argsToConfig(kind, a, b, c, d, e)
+    local config
+    if type(a) == "table" then
+        config = a
+        if type(b) == "function" and config.Callback == nil and config.callback == nil then
+            config = canon(config, kind)
+            config.Callback = b
+        end
+    elseif type(a) == "string" or type(a) == "number" then
+        if type(b) == "table" then
+            config = {}
+            for k, v in pairs(b) do config[k] = v end
+            local named = config.Name or config.name or config.Title or config.title
+                or (kind ~= "Label" and kind ~= "Paragraph" and (config.Text or config.text))
+            if named then
+                if config.Flag == nil and config.flag == nil then config.Flag = tostring(a) end
+            else
+                config.Name = tostring(a)
+            end
+        elseif kind == "Label" then
+            config = { Text = tostring(a) }
+        elseif kind == "Paragraph" then
+            config = { Title = tostring(a), Content = type(b) == "string" and b or nil }
+        else
+            config = { Name = tostring(a) }
+            local rest = { b, c, d, e }
+            local first = 1
+            if type(b) == "string" and (kind ~= "Keybind" or (c ~= nil and type(c) ~= "function")) then
+                config.Description = b
+                first = 2
+            end
+            -- Kavo: NewSlider(name, info, max, min, cb), NewDropdown(name,
+            -- info, options, cb), NewKeybind(name, info, key, cb), ...
+            local numbers = 0
+            for i = first, 4 do
+                local v = rest[i]
+                if type(v) == "function" then
+                    config.Callback = config.Callback or v
+                elseif kind == "Dropdown" and type(v) == "table" and config.Options == nil then
+                    config.Options = v
+                elseif kind == "Slider" and type(v) == "number" then
+                    numbers = numbers + 1
+                    if numbers == 1 then config.Max = v elseif numbers == 2 then config.Min = v end
+                elseif v ~= nil and config.Default == nil then
+                    config.Default = v
+                end
+            end
+        end
+    else
+        config = {}
+    end
+    return canon(config, kind)
+end
+
+---------------------------------------------------------------- visible notes
+local function sectionNote(section, message)
+    if BPUI.ShowErrors == false or not section or section._stub then return end
+    pcall(function()
+        local p = Section.AddParagraph(section, {
+            Title = "BPUI: " .. message.title,
+            Content = message.body .. " See GUIDE.md on the BPUI GitHub page.",
+        })
+        if p and p._nameLabel then
+            p._nameLabel.TextColor3 = ACTIVE.Danger
+            bind(p, p._nameLabel, "TextColor3", "Danger")
+        end
+    end)
+end
+
+local function stubElement()
+    return setmetatable({ _stub = true, Type = "Stub" }, {
+        __index = function(_, key)
+            if type(key) ~= "string" or key:sub(1, 1) == "_" or key == "Value" then return nil end
+            return function() return nil end
+        end,
+    })
+end
+
+---------------------------------------------------------------- element aliases
+local KINDS = {
+    Button = "AddButton", Toggle = "AddToggle", Slider = "AddSlider",
+    Dropdown = "AddDropdown", Input = "AddInput", Keybind = "AddKeybind",
+    ColorPicker = "AddColorPicker", Label = "AddLabel", Paragraph = "AddParagraph",
+    Divider = "AddDivider",
+}
+-- other names for the same element, as seen in the wild
+local KIND_ALIASES = {
+    Button = { "Button" },
+    Toggle = { "Toggle", "Checkbox", "CheckBox", "Switch" },
+    Slider = { "Slider" },
+    Dropdown = { "Dropdown", "DropDown", "Dropdownlist", "Combo" },
+    Input = { "Input", "Textbox", "TextBox", "TextInput", "Box" },
+    Keybind = { "Keybind", "KeyBind", "Bind", "Keypicker", "KeyPicker" },
+    ColorPicker = { "ColorPicker", "Colorpicker", "ColourPicker", "Colorwheel", "Color" },
+    Label = { "Label" },
+    Paragraph = { "Paragraph", "Text", "Info", "Note" },
+    Divider = { "Divider", "Separator", "Seperator", "Line", "Space", "Spacer" },
+}
+local PREFIXES = { "", "Add", "Create", "Make", "New" }
+
+local function makeSectionMethod(kind, method)
+    local original = Section[method]
+    return function(self, a, b, c, d, e)
+        if getmetatable(self) ~= Section then
+            warn("[BPUI] Call " .. method .. " with a colon: section:" .. method .. "({...}), not section." .. method .. "({...})")
+            return stubElement()
+        end
+        if kind == "Divider" then return original(self, type(a) == "number" and a or nil) end
+        local config = argsToConfig(kind, a, b, c, d, e)
+        -- Rayfield's CreateText({name, text}) / Label with a title and body
+        if kind == "Label" and config.Content and (config.Name or config.Title) then
+            return Section.AddParagraph(self, canon({ Title = config.Name or config.Title, Content = config.Content }, "Paragraph"))
+        end
+        local el = original(self, config)
+        if el and not el._stub and config.Locked == true and el.SetLocked then pcall(el.SetLocked, el, true) end
+        if el and el._stub then
+            sectionNote(self, { title = kind .. " \"" .. tostring(config.Name or config.Text or config.Title or "") .. "\" failed",
+                body = "It raised an error while being created; the [BPUI] line in the console (F9) says why." })
+        end
+        return el
+    end
+end
+
+for kind, method in pairs(KINDS) do
+    Section[method] = makeSectionMethod(kind, method)
+end
+for kind, method in pairs(KINDS) do
+    for _, word in ipairs(KIND_ALIASES[kind]) do
+        for _, pre in ipairs(PREFIXES) do
+            Section[pre .. word] = Section[method]
+        end
+    end
+end
+
+-- Elements called straight on a tab land in the tab's most recent section --
+-- Rayfield scripts do `Tab:CreateSection("Aim")` then `Tab:CreateToggle{}` and
+-- expect the toggle under "Aim" -- or in an untitled section if there's none.
+local function tabTarget(tab)
+    local last = tab._lastSection
+    if last and not last._destroyed and getmetatable(last) == Section then return last end
+    if not tab._defaultSection or tab._defaultSection._destroyed then
+        tab._defaultSection = tab:CreateSection({ Name = "" })
+    end
+    tab._lastSection = tab._defaultSection
+    return tab._defaultSection
+end
+
+for name, fn in pairs(Section) do
+    if type(fn) == "function" and name:match("^%u") and not name:match("^Set")
+        and name ~= "Destroy" and name ~= "SetTitle" and name ~= "SetVisible" then
+        Tab[name] = Tab[name] or function(self, ...)
+            if getmetatable(self) ~= Tab then
+                warn("[BPUI] Call " .. name .. " with a colon: tab:" .. name .. "({...}), not tab." .. name .. "({...})")
+                return stubElement()
+            end
+            local target = tabTarget(self)
+            return target[name](target, ...)
+        end
+    end
+end
+for kind, method in pairs(KINDS) do
+    -- p7 bound Tab.AddX to the old single-argument path; route it here too
+    Tab[method] = function(self, ...)
+        if getmetatable(self) ~= Tab then
+            warn("[BPUI] Call " .. method .. " with a colon: tab:" .. method .. "({...})")
+            return stubElement()
+        end
+        local target = tabTarget(self)
+        return target[method](target, ...)
+    end
+    Tab["Create" .. kind] = Tab[method]
+end
+
+---------------------------------------------------------------- sections
+local rawCreateSection = Tab.CreateSection
+function Tab:CreateSection(a, b)
+    if getmetatable(self) ~= Tab then
+        warn("[BPUI] Call CreateSection with a colon: tab:CreateSection(\"Name\")")
+        return stubElement()
+    end
+    local config
+    if type(a) == "table" then
+        config = canon(a, "Section")
+    elseif a ~= nil then
+        config = { Name = tostring(a) }
+        if type(b) == "table" then for k, v in pairs(canon(b, "Section")) do config[k] = config[k] or v end end
+    else
+        config = { Name = "" }
+    end
+    config.Name = config.Name or ""
+    local section = rawCreateSection(self, config)
+    if section and getmetatable(section) == Section then self._lastSection = section end
+    return section
+end
+for _, name in ipairs({ "AddSection", "Section", "MakeSection", "NewSection", "CreateCategory", "AddCategory" }) do
+    Tab[name] = Tab.CreateSection
+end
+-- A section object handed to CreateSection again (Linoria's groupboxes, or a
+-- nested "subsection") just becomes a sibling section on the same tab.
+for _, name in ipairs({ "CreateSection", "AddSection", "Section", "AddLeftGroupbox", "AddRightGroupbox",
+                         "AddGroupbox", "AddLeftTabbox", "AddRightTabbox" }) do
+    Section[name] = Section[name] or function(self, ...)
+        return Tab.CreateSection(self._tab, ...)
+    end
+end
+Tab.AddLeftGroupbox = Tab.CreateSection
+Tab.AddRightGroupbox = Tab.CreateSection
+Tab.AddGroupbox = Tab.CreateSection
+
+---------------------------------------------------------------- tabs
+local function tabConfig(a, b)
+    local config
+    if type(a) == "table" then
+        config = canon(a, "Tab")
+    else
+        config = { Name = a ~= nil and tostring(a) or nil }
+        -- Rayfield: CreateTab("Main", 4483362458); Orion/Kavo: (name, icon)
+        if b ~= nil and (type(b) == "number" or type(b) == "string") then config.Icon = b end
+        if type(b) == "table" then for k, v in pairs(canon(b, "Tab")) do config[k] = config[k] or v end end
+    end
+    -- Rayfield's default tab image (4483362458) is a generic placeholder that
+    -- doesn't load for most people; a missing icon beats an empty square.
+    if config.Icon == 4483362458 or config.Icon == "4483362458" then config.Icon = nil end
+    return config
+end
+
+-- If Settings got built first (the script yielded before its first tab),
+-- the script's first real tab is the one that should be open.
+local function afterRealTab(window, tab)
+    if not tab or window._realTabShown then return end
+    window._realTabShown = true
+    local active = window._activeTab
+    if active and active ~= tab and active._isSettings then
+        pcall(function() tab:Select(true) end)
+    end
+end
+
+local rawCreateTab = Window.CreateTab
+function Window:CreateTab(a, b)
+    if getmetatable(self) ~= Window then
+        warn("[BPUI] Call CreateTab with a colon: Window:CreateTab({ Name = \"Main\" })")
+        return stubElement()
+    end
+    local config = tabConfig(a, b)
+    local tab = rawCreateTab(self, config)
+    if not config.__settings then afterRealTab(self, tab) end
+    return tab
+end
+for _, name in ipairs({ "Tab", "AddTab", "MakeTab", "NewTab", "Page", "AddPage", "CreatePage" }) do
+    Window[name] = Window.CreateTab
+end
+
+local rawGroupTab = Group.CreateTab
+function Group:CreateTab(a, b)
+    local tab = rawGroupTab(self, tabConfig(a, b))
+    afterRealTab(self._window, tab)
+    return tab
+end
+Group.AddTab = Group.CreateTab
+Group.Tab = Group.CreateTab
+
+local rawCreateGroup = Window.CreateGroup
+function Window:CreateGroup(a, b)
+    return rawCreateGroup(self, tabConfig(a, b))
+end
+for _, name in ipairs({ "Group", "AddGroup", "Category", "AddCategory", "CreateCategory", "Folder", "AddFolder" }) do
+    Window[name] = Window.CreateGroup
+end
+
+---------------------------------------------------------------- windows
+local WINDOW_SYNONYMS = {
+    Name = "Title", SubTitle = "Subtitle", LoadingSubtitle = "Subtitle", Author = "Subtitle",
+    Keybind = "ToggleKey", MinimizeKey = "ToggleKey", ToggleUIKeybind = "ToggleKey",
+    Logo = "Icon", Image = "Icon", Folder = "ConfigFolder",
+}
+local compatCreateWindow = BPUI.CreateWindow
+function BPUI:CreateWindow(config, extra)
+    -- BPUI.CreateWindow({...}) with a dot: the config arrives as self
+    if self ~= BPUI and (type(self) == "table" or type(self) == "string") then
+        config, extra, self = self, config, BPUI
+    end
+    if type(config) == "string" then config = { Title = config, Subtitle = type(extra) == "string" and extra or nil } end
+    config = type(config) == "table" and config or {}
+    local out = {}
+    for k, v in pairs(config) do out[k] = v end
+    for k, v in pairs(config) do
+        if type(k) == "string" then
+            local upper = k:sub(1, 1):upper() .. k:sub(2)
+            if upper ~= k and out[upper] == nil then out[upper] = v end
+            local syn = WINDOW_SYNONYMS[upper]
+            if syn and out[syn] == nil then out[syn] = v end
+        end
+    end
+    -- Rayfield: KeySystem = true + KeySettings = { Title, Subtitle, Note, Key, SaveKey }
+    if out.KeySystem ~= nil and type(out.KeySystem) ~= "table" then
+        local ks = out.KeySettings
+        if out.KeySystem and type(ks) == "table" then
+            local keys = ks.Key or ks.Keys
+            out.KeySystem = {
+                Title = ks.Title,
+                Subtitle = ks.Subtitle,
+                Note = ks.Note,
+                Keys = type(keys) == "table" and keys or (keys ~= nil and { tostring(keys) } or nil),
+                SaveKey = ks.SaveKey,
+                GetKeyLink = ks.GetKeyLink or ks.Link,
+            }
+        else
+            out.KeySystem = nil
+        end
+    end
+    -- Rayfield's ConfigurationSaving.FolderName
+    if type(out.ConfigurationSaving) == "table" and out.ConfigFolder == nil then
+        out.ConfigFolder = out.ConfigurationSaving.FolderName
+    end
+    if typeof(out.ToggleKey) == "EnumItem" or type(out.ToggleKey) == "string" then
+        -- fine as is
+    else
+        out.ToggleKey = nil
+    end
+    -- Theme names from other libraries that we don't have fall back quietly
+    if type(out.Theme) == "string" and not BPUI.Themes[out.Theme] then out.Theme = nil end
+    return compatCreateWindow(BPUI, out)
+end
+for _, name in ipairs({ "MakeWindow", "NewWindow", "CreateLib", "Load", "new", "New" }) do
+    BPUI[name] = BPUI.CreateWindow
+end
+
+---------------------------------------------------------------- element methods
+-- Methods other libraries put on every element, mapped onto ours.
+local function alias(name, fn) if Element[name] == nil then Element[name] = fn end end
+alias("SetValue", function(self, ...) if self.Set then return self:Set(...) end end)
+alias("GetValue", function(self) return self.Value end)
+-- a keybind's "changed" is its key being rebound, which is _onChanged;
+-- everywhere else it is the value changing, which is the callback
+local function onChanged(self, fn)
+    if self.Type == "Keybind" then self._onChanged = fn else self._callback = fn end
+end
+alias("OnChanged", onChanged)
+alias("OnChange", onChanged)
+alias("SetValues", function(self, list, keep) if self.Refresh then return self:Refresh(list, keep) end end)
+alias("SetOptions", function(self, list, keep) if self.Refresh then return self:Refresh(list, keep) end end)
+alias("SetText", function(self, str)
+    if self.Type == "Paragraph" then return self:SetContent(str) end
+    if self.Type == "Label" then return self:Set(str) end
+    return self:SetName(str)
+end)
+alias("SetDesc", function(self, str) return self:SetDescription(str) end)
+alias("SetDisabled", function(self, v) return self:SetLocked(v) end)
+alias("SetEnabled", function(self, v) return self:SetLocked(not v) end)
+alias("Show", function(self) return self:SetVisible(true) end)
+alias("Hide", function(self) return self:SetVisible(false) end)
+alias("Remove", function(self) return self:Destroy() end)
+alias("Fire", function(self) if self.Click then return self:Click() end end)
+
+-- Linoria chains extras off a row: Groupbox:AddLabel("Color"):AddColorPicker(...)
+for kind, method in pairs(KINDS) do
+    for _, word in ipairs(KIND_ALIASES[kind]) do
+        alias("Add" .. word, function(self, ...)
+            local section = self._section
+            if not section or getmetatable(section) ~= Section then return stubElement() end
+            return section[method](section, ...)
+        end)
+    end
+end
+alias("AddKeyPicker", Element.AddKeybind)
+
+---------------------------------------------------------------- library-level
+BPUI.Options = BPUI.Flags
+local rawNotify = BPUI.Notify
+function BPUI:Notify(config, b, c)
+    if self ~= BPUI and (type(self) == "table" or type(self) == "string") then config, b, self = self, config, BPUI end
+    if type(config) == "string" then
+        -- Linoria Notify("text", seconds) / plain Notify("Title", "Content")
+        config = type(b) == "string" and { Title = config, Content = b, Duration = tonumber(c) }
+            or { Title = "Notice", Content = config, Duration = tonumber(b) }
+    end
+    config = type(config) == "table" and config or {}
+    local out = {}
+    for k, v in pairs(config) do out[k] = v end
+    for k, v in pairs(config) do
+        if type(k) == "string" then
+            local upper = k:sub(1, 1):upper() .. k:sub(2)
+            if out[upper] == nil then out[upper] = v end
+        end
+    end
+    out.Title = out.Title or out.Name or out.Header
+    out.Content = out.Content or out.Text or out.Description or out.Desc or out.SubContent
+    out.Duration = out.Duration or out.Time or out.Delay or out.Length
+    return rawNotify(BPUI, out)
+end
+BPUI.MakeNotification = BPUI.Notify
+BPUI.Notification = BPUI.Notify
+BPUI.Notif = BPUI.Notify
+-- no-ops other libraries require to be called
+BPUI.Init = BPUI.Init or function() end
+BPUI.LoadConfiguration = BPUI.LoadConfiguration or function() end
+
+local rawSelectTab = Window.SelectTab
+function Window:SelectTab(ref)
+    if type(ref) == "number" then
+        -- count the script's own tabs; Settings may have been built first
+        local n = 0
+        local pick
+        for _, t in ipairs(self._tabs) do
+            if not t._isSettings then
+                n = n + 1
+                if n == ref then pick = t break end
+            end
+        end
+        ref = pick
+    end
+    return rawSelectTab(self, ref)
+end
+Window.MakeNotification = function(self, ...) return BPUI.Notify(BPUI, ...) end
+
+---------------------------------------------------------------- unknown methods
+-- Anything that looks like "make me an element" but isn't one of ours.
+local function looksLikeCreate(key)
+    return type(key) == "string" and (key:match("^Add%u") or key:match("^Create%u")
+        or key:match("^Make%u") or key:match("^New%u"))
+end
+
+local function unknownOn(kindName, host)
+    return function(t, key)
+        local v = rawget(host, key)
+        if v ~= nil then return v end
+        if not looksLikeCreate(key) then return nil end
+        return function(self)
+            local what = kindName .. ":" .. key .. "()"
+            if not BPUI._unknownWarned then BPUI._unknownWarned = {} end
+            if not BPUI._unknownWarned[what] then
+                BPUI._unknownWarned[what] = true
+                warn("[BPUI] " .. what .. " doesn't exist in BPUI -- skipped. Elements are: "
+                    .. "Button, Toggle, Slider, Dropdown, Input, Keybind, ColorPicker, Label, Paragraph, Divider.")
+            end
+            local section = (kindName == "Section" and self)
+                or (kindName == "Tab" and getmetatable(self) == Tab and tabTarget(self))
+            if section and getmetatable(section) == Section then
+                sectionNote(section, { title = key .. " is not a BPUI element",
+                    body = "This line of the script was skipped." })
+            end
+            return stubElement()
+        end
+    end
+end
+Section.__index = unknownOn("Section", Section)
+Tab.__index = unknownOn("Tab", Tab)
+
+BPUI.Group = Group
+BPUI._canon = canon
 
 return BPUI

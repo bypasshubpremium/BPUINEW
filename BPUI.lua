@@ -4020,7 +4020,8 @@ function Tab:CreateSection(config)
     section._card = holder
 
     if config.Name and config.Name ~= "" then
-        local headWrap = new("Frame", {
+        local collapsible = config.Collapsible == true
+        local headWrap = new(collapsible and "TextButton" or "Frame", {
             Name = "Header",
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 24),
@@ -4049,7 +4050,7 @@ function Tab:CreateSection(config)
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Bottom,
             Position = UDim2.new(0, 9, 0, 0),
-            Size = UDim2.new(1, -9, 1, -5),
+            Size = UDim2.new(1, collapsible and -33 or -9, 1, -5),
             ZIndex = 2,
             Parent = headWrap,
         })
@@ -4057,6 +4058,55 @@ function Tab:CreateSection(config)
         section._header = header
         section._headerRaw = config.Name
         section._caps = caps
+
+        if collapsible then
+            headWrap.Text = ""
+            headWrap.AutoButtonColor = false
+            headWrap.BorderSizePixel = 0
+            headWrap.BackgroundColor3 = theme.SurfaceHover
+            corner(headWrap, RADIUS.sm)
+
+            section._collapsible = true
+            section._open = config.Open ~= false
+
+            local chevBox = new("Frame", {
+                BackgroundTransparency = 1,
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -8, 0, 13),
+                Size = UDim2.new(0, 16, 0, 16),
+                ZIndex = 3,
+                Parent = headWrap,
+            })
+            local chev = iconChevron(chevBox, 11, theme.Muted, section._open and 90 or 0, 3)
+            bindIcon(section, chev, "Muted")
+            section._chev = chev
+
+            local body = new("Frame", {
+                Name = "Body",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                LayoutOrder = 1,
+                ZIndex = 2,
+                Parent = holder,
+            })
+            list(body, 3)
+            section._body = body
+            section._card = body
+
+            if not IS_MOBILE then
+                track(section, headWrap.MouseEnter:Connect(function()
+                    tween(headWrap, { BackgroundTransparency = 0.5, BackgroundColor3 = ACTIVE.SurfaceHover }, MOTION.hover)
+                    tween(header, { TextColor3 = ACTIVE.Text }, MOTION.hover)
+                end))
+                track(section, headWrap.MouseLeave:Connect(function()
+                    tween(headWrap, { BackgroundTransparency = 1 }, MOTION.hover)
+                    tween(header, { TextColor3 = caps and ACTIVE.Muted or ACTIVE.Text }, MOTION.hover)
+                end))
+            end
+            pressable(section, headWrap, headWrap, function() section:Toggle() end, { rippleAlpha = 0.92, pressScale = 0.985 })
+            section:_applyOpen(true)
+        end
     end
 
     table.insert(self._sections, section)
@@ -4070,6 +4120,35 @@ function Section:SetTitle(str)
         self._header.Text = self._caps and spaced(tostring(str):upper()) or tostring(str)
     end
 end
+
+function Section:IsOpen()
+    if not self._collapsible then return true end
+    return self._open or self._searchOpen == true
+end
+
+function Section:_applyOpen(instant)
+    if not self._collapsible then return end
+    local open = self:IsOpen()
+    if not open then
+        local panel = BPUI._openPanel
+        if panel and panel._section == self then closeOpenPanel(nil) end
+    end
+    self._body.Visible = open
+    local rot = open and 90 or 0
+    if instant then self._chev.Rotation = rot
+    else tw(self._chev, MOTION.standard, { Rotation = rot }) end
+end
+
+function Section:SetOpen(state)
+    if not self._collapsible then return end
+    self._open = state and true or false
+    self._searchOpen = nil
+    self:_applyOpen()
+end
+
+function Section:Open() self:SetOpen(true) end
+function Section:Close() self:SetOpen(false) end
+function Section:Toggle() self:SetOpen(not self:IsOpen()) end
 
 function Section:SetVisible(v)
     if not v then
@@ -4331,6 +4410,10 @@ function Window:Search(query)
                 section._holder.Visible = false
             else
                 section._holder.Visible = empty and true or (hits > 0)
+            end
+            if section._collapsible then
+                section._searchOpen = not empty and hits > 0
+                section:_applyOpen(true)
             end
             tabHits = tabHits + hits
         end
@@ -7544,12 +7627,18 @@ end
 for kind, method in pairs(KINDS) do
     Section[method] = makeSectionMethod(kind, method)
 end
+local toggleSection = Section.Toggle
 for kind, method in pairs(KINDS) do
     for _, word in ipairs(KIND_ALIASES[kind]) do
         for _, pre in ipairs(PREFIXES) do
             Section[pre .. word] = Section[method]
         end
     end
+end
+local addToggleAlias = Section.Toggle
+Section.Toggle = function(self, ...)
+    if select("#", ...) == 0 and self._collapsible then return toggleSection(self) end
+    return addToggleAlias(self, ...)
 end
 
 -- Elements called straight on a tab land in the tab's most recent section --
@@ -7567,7 +7656,8 @@ end
 
 for name, fn in pairs(Section) do
     if type(fn) == "function" and name:match("^%u") and not name:match("^Set")
-        and name ~= "Destroy" and name ~= "SetTitle" and name ~= "SetVisible" then
+        and name ~= "Destroy" and name ~= "SetTitle" and name ~= "SetVisible"
+        and name ~= "Open" and name ~= "Close" and name ~= "IsOpen" then
         Tab[name] = Tab[name] or function(self, ...)
             if getmetatable(self) ~= Tab then
                 warn("[BPUI] Call " .. name .. " with a colon: tab:" .. name .. "({...}), not tab." .. name .. "({...})")

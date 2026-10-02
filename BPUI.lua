@@ -3772,7 +3772,8 @@ function Window:CreateGroup(config)
         ZIndex = 5,
         Parent = header,
     })
-    local chev = iconChevron(chevBox, 11, theme.Muted, group._open and 90 or 0, 6)
+    local chev = iconAny(chevBox, "chevron-right", 13, theme.Muted, 6)
+    chev.Rotation = group._open and 90 or 0
     group._chev = chev
 
     local container = new("Frame", {
@@ -4077,7 +4078,8 @@ function Tab:CreateSection(config)
                 ZIndex = 3,
                 Parent = headWrap,
             })
-            local chev = iconChevron(chevBox, 11, theme.Muted, section._open and 90 or 0, 3)
+            local chev = iconAny(chevBox, "chevron-right", 13, theme.Muted, 3)
+            chev.Rotation = section._open and 90 or 0
             bindIcon(section, chev, "Muted")
             section._chev = chev
 

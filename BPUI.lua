@@ -4432,7 +4432,14 @@ local function baseRow(section, config, opts)
         elseif kind == "draw" then bindIcon(el, ico, "SubText") end
         el._icon, el._iconKind, el._iconBox = ico, kind, box
     end
-    pad(inner, 9, 13, 9, 13 + iconInset)
+     local inset = math.max(iconInset, section._iconInset or 0)
+ el._pad = pad(inner, 9, 13, 9, 13 + inset)
+ if iconInset > (section._iconInset or 0) then
+     section._iconInset = iconInset
+     for _, other in ipairs(section._elements) do
+         if other._pad then other._pad.PaddingLeft = UDim.new(0, 13 + iconInset) end
+     end
+ end
     el._inner = inner
     el._autoY = autoY
     el._tooltip = config.Tooltip

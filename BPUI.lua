@@ -1937,6 +1937,7 @@ function BPUI:CreateWindow(config)
     })
     self._backdrop = backdrop
     self._sectionStyle = config.SectionStyle or "Caps"
+    self._configDetails = type(config.Details) == "table" and config.Details or nil
 
     local bgDefaults = { ImageAlpha = 0.7 }
     self._bg = {}
@@ -2166,6 +2167,7 @@ function BPUI:CreateWindow(config)
             self:Search(searchBox.Text)
         end))
         self._searchBox = searchBox
+        self._searchWrap = searchWrap
     end
 
     local tabTop = (config.Search ~= false) and 92 or 62
@@ -2205,6 +2207,7 @@ function BPUI:CreateWindow(config)
         Parent = footer,
     })
     bind(self, footerLine, "BackgroundColor3", "Stroke")
+    self._footer = footer
 
     -- Profile chip: the player's headshot with a small (static) online dot,
     -- then the name. Streamer mode / a custom display name swaps the photo
@@ -2294,6 +2297,7 @@ function BPUI:CreateWindow(config)
     })
     bind(self, footerText, "TextColor3", "Muted")
     self:_refreshIdentity()
+    self:_applyDetails()
 
     local body = new("Frame", {
         Name = "Body",
@@ -3399,6 +3403,85 @@ function Window:SetNameHidden(state)
     self:_refreshIdentity()
     self:_saveSettingsLater()
 end
+
+local DETAIL_DEFAULT = { Search = true, Ticks = true, Tree = true, Chevrons = true, Footer = true }
+
+function Window:_detail(key)
+    local d = self._settings and self._settings.Details
+    if d and d[key] ~= nil then return d[key] end
+    local c = self._configDetails
+    if c and c[key] ~= nil then return c[key] end
+    return DETAIL_DEFAULT[key]
+end
+
+local function detailColor(w, key)
+    local v = w and w:_detail(key)
+    if typeof(v) == "Color3" then return v end
+    if type(v) == "table" and v[1] then return Color3.fromRGB(v[1], v[2], v[3]) end
+end
+
+local function paintTick(w, s)
+    local tick = s._tick
+    if not tick then return end
+    local on = w:_detail("Ticks") ~= false
+    tick.Visible = on
+    tick.BackgroundColor3 = detailColor(w, "TickColor") or ACTIVE.Accent
+    if s._header then
+        s._header.Position = UDim2.new(0, on and 9 or 0, 0, 0)
+    end
+end
+
+local function paintTree(w, t)
+    if not t._rail then return end
+    local on = w:_detail("Tree") ~= false
+    local c = detailColor(w, "TreeColor") or ACTIVE.Stroke
+    t._rail.Visible = on
+    t._rail.BackgroundColor3 = c
+    if t._elbow then
+        t._elbow.Visible = on
+        t._elbow.BackgroundColor3 = (w._activeTab == t) and ACTIVE.Accent or c
+    end
+end
+
+local function paintChev(w, el)
+    if el._chevBox then el._chevBox.Visible = w:_detail("Chevrons") ~= false end
+end
+
+function Window:_applyDetails()
+    local search = self._searchWrap ~= nil and self:_detail("Search") ~= false
+    if self._searchWrap then self._searchWrap.Visible = search end
+    local foot = self:_detail("Footer") ~= false
+    if self._footer then self._footer.Visible = foot end
+    if self._tabScroll then
+        local top = search and 92 or 62
+        local bottom = foot and 44 or 8
+        self._tabScroll.Position = UDim2.new(0, 8, 0, top)
+        self._tabScroll.Size = UDim2.new(1, -16, 1, -(top + bottom))
+    end
+    for _, tab in ipairs(self._tabs or {}) do
+        paintTree(self, tab)
+        for _, s in ipairs(tab._sections or {}) do
+            paintTick(self, s)
+            for _, el in ipairs(s._elements or {}) do paintChev(self, el) end
+        end
+    end
+end
+
+function Window:SetDetail(key, value)
+    if typeof(value) == "Color3" then
+        value = { math.floor(value.R * 255 + 0.5), math.floor(value.G * 255 + 0.5), math.floor(value.B * 255 + 0.5) }
+    end
+    self._settings.Details = self._settings.Details or {}
+    self._settings.Details[key] = value
+    self:_applyDetails()
+    self:_saveSettingsLater()
+end
+
+function Window:ResetDetails()
+    self._settings.Details = nil
+    self:_applyDetails()
+    self:_saveSettingsLater()
+end
 local Tab = {}
 Tab.__index = Tab
 local Section = {}
@@ -3520,6 +3603,7 @@ local function buildTab(w, container, config, group)
         })
         bind(tab, elbow, "BackgroundColor3", "Stroke")
         tab._elbow = elbow
+        paintTree(w, tab)
     end
 
     local inset = 0
@@ -3908,7 +3992,7 @@ function Tab:Select(instant)
         })
         tw(t._label, info, { TextColor3 = on and ACTIVE.Text or ACTIVE.SubText })
         tw(t._bar, instant and TweenInfo.new(0) or MOTION.spring, { Size = UDim2.new(0, 3, 0, on and 18 or 0) })
-        if t._elbow then tw(t._elbow, info, { BackgroundColor3 = on and ACTIVE.Accent or ACTIVE.Stroke }) end
+        if t._elbow then tw(t._elbow, info, { BackgroundColor3 = on and ACTIVE.Accent or (detailColor(w, "TreeColor") or ACTIVE.Stroke) }) end
         if t._iconKind == "image" then
             if not t._icon:GetAttribute("IconLocked") then
                 tw(t._icon, info, { ImageColor3 = on and ACTIVE.Accent or ACTIVE.SubText })
@@ -4059,6 +4143,8 @@ function Tab:CreateSection(config)
         section._header = header
         section._headerRaw = config.Name
         section._caps = caps
+        section._tick = tick
+        paintTick(self._window, section)
 
         if collapsible then
             headWrap.Text = ""
@@ -4784,6 +4870,8 @@ function Section:AddButton(config)
     })
     local chev = iconChevron(chevBox, 13, theme.Muted, 0, 5)
     el._paint = function() tintIcon(chev, ACTIVE.Muted) end
+    el._chevBox = chevBox
+    paintChev(self._window, el)
 
     rowHover(el)
     local hit = hitButton(el)
@@ -7008,6 +7096,7 @@ function BPUI:SetTheme(theme)
                 active:Select(true)
             end
             pcall(function() w:_retintBackground() end)
+            pcall(function() w:_applyDetails() end)
             if type(theme) == "string" then
                 w._settings.Theme = theme
                 w:_saveSettingsLater()
@@ -7088,6 +7177,58 @@ buildSettingsTab = function(window, config)
         Description = "Highlight used for active states.",
         Default = ACTIVE.Accent,
         Callback = function(c) BPUI:SetAccent(c) end,
+    })
+
+    local details = tab:CreateSection("Details")
+    local function dcol(key, fallback)
+        return detailColor(window, key) or fallback
+    end
+    details:AddToggle({
+        Name = "Search bar",
+        Icon = "search",
+        Default = window:_detail("Search") ~= false,
+        Callback = function(v) window:SetDetail("Search", v) end,
+    })
+    details:AddToggle({
+        Name = "Section markers",
+        Icon = "minus",
+        Default = window:_detail("Ticks") ~= false,
+        Callback = function(v) window:SetDetail("Ticks", v) end,
+    })
+    details:AddColorPicker({
+        Name = "Marker colour",
+        Default = dcol("TickColor", ACTIVE.Accent),
+        Callback = function(c) window:SetDetail("TickColor", c) end,
+    })
+    details:AddToggle({
+        Name = "Sidebar lines",
+        Icon = "git-branch",
+        Default = window:_detail("Tree") ~= false,
+        Callback = function(v) window:SetDetail("Tree", v) end,
+    })
+    details:AddColorPicker({
+        Name = "Line colour",
+        Default = dcol("TreeColor", ACTIVE.Stroke),
+        Callback = function(c) window:SetDetail("TreeColor", c) end,
+    })
+    details:AddToggle({
+        Name = "Button arrows",
+        Icon = "chevron-right",
+        Default = window:_detail("Chevrons") ~= false,
+        Callback = function(v) window:SetDetail("Chevrons", v) end,
+    })
+    details:AddToggle({
+        Name = "Profile footer",
+        Icon = "user",
+        Default = window:_detail("Footer") ~= false,
+        Callback = function(v) window:SetDetail("Footer", v) end,
+    })
+    details:AddButton({
+        Name = "Reset details",
+        Callback = function()
+            window:ResetDetails()
+            BPUI:Notify({ Title = "Details", Content = "Reset", Type = "Success", Duration = 2 })
+        end,
     })
 
     local backdrop = tab:CreateSection("Background")

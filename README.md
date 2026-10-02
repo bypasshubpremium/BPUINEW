@@ -43,6 +43,15 @@ local auto = farm:CreateTab({ Name = "Auto Farm", Icon = "repeat" })
 local world = farm:CreateTab({ Name = "World", Icon = "map" })
 ```
 
+### Section emoji
+
+```lua
+local sec = tab:CreateSection({ Name = "Live", Emoji = "🥚" })
+sec:SetEmoji("⭐")
+sec:SetEmoji(nil)
+```
+
+
 ## collapsible sections
 
 add `Collapsible = true` and the header becomes clickable. add `Open = false` if u want it to start closed

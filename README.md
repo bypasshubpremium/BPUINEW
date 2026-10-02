@@ -25,6 +25,7 @@ Section:AddToggle({
 ## features
 
 - tabs, groups (sub tabs), sections
+- collapsible sections
 - toggle, slider, dropdown, input, keybind, colorpicker, button, label, paragraph
 - ~340 lucide icons built in
 - 8 built in themes + custom themes
@@ -33,6 +34,35 @@ Section:AddToggle({
 - notifications and dialogs
 - watermark with fps/ping
 - search, mobile support, streamer mode
+
+## sub tabs
+
+```lua
+local farm = Window:CreateGroup({ Name = "Farming", Icon = "swords", Open = true })
+local auto = farm:CreateTab({ Name = "Auto Farm", Icon = "repeat" })
+local world = farm:CreateTab({ Name = "World", Icon = "map" })
+```
+
+## collapsible sections
+
+add `Collapsible = true` and the header becomes clickable. add `Open = false` if u want it to start closed
+
+```lua
+local combat = Tab:CreateSection({ Name = "Combat", Collapsible = true, Open = false })
+combat:AddToggle({ Name = "Auto Attack", Callback = function(v) end })
+
+combat:Open()
+combat:Close()
+combat:Toggle()
+combat:SetOpen(true)
+print(combat:IsOpen())
+```
+
+- sections without a name cant collapse
+- stuff hidden with SetVisible(false) stays hidden when the section opens again
+- search opens a closed section if something inside matches, closes it again when u clear the search
+- open/closed state isnt saved to configs
+- `combat:Toggle({...})` with a table still adds a toggle like before, only the empty call collapses
 
 ## elements
 

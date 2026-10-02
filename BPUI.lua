@@ -1517,7 +1517,7 @@ end
 
 local function spaced(str)
     local out = {}
-    for i = 1, #str do out[#out + 1] = str:sub(i, i) end
+    for ch in str:gmatch(utf8.charpattern) do out[#out + 1] = ch end
     return table.concat(out, " ")
 end
 
@@ -3426,9 +3426,7 @@ local function paintTick(w, s)
     local on = w:_detail("Ticks") ~= false
     tick.Visible = on
     tick.BackgroundColor3 = detailColor(w, "TickColor") or ACTIVE.Accent
-    if s._header then
-        s._header.Position = UDim2.new(0, on and 9 or 0, 0, 0)
-    end
+    s._layoutHeader(on)
 end
 
 local function paintTree(w, t)
@@ -4144,6 +4142,31 @@ function Tab:CreateSection(config)
         section._headerRaw = config.Name
         section._caps = caps
         section._tick = tick
+        local emoji = text({
+            Name = "Emoji",
+            Text = "",
+            Font = FONT.medium,
+            TextSize = caps and 12 or 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Bottom,
+            Size = UDim2.new(0, 18, 1, -4),
+            Visible = false,
+            ZIndex = 2,
+            Parent = headWrap,
+        })
+        section._emoji = emoji
+        local shrink = collapsible and -33 or 0
+        section._layoutHeader = function(tickOn)
+            if tickOn == nil then tickOn = tick.Visible end
+            local x = tickOn and 9 or 0
+            local hasEmoji = emoji.Text ~= ""
+            emoji.Visible = hasEmoji
+            emoji.Position = UDim2.new(0, x, 0, 0)
+            if hasEmoji then x = x + 18 end
+            header.Position = UDim2.new(0, x, 0, 0)
+            header.Size = UDim2.new(1, shrink - x, 1, -5)
+        end
+        if config.Emoji ~= nil and tostring(config.Emoji) ~= "" then emoji.Text = tostring(config.Emoji) end
         paintTick(self._window, section)
 
         if collapsible then
@@ -4207,6 +4230,12 @@ function Section:SetTitle(str)
         self._headerRaw = str
         self._header.Text = self._caps and spaced(tostring(str):upper()) or tostring(str)
     end
+end
+
+function Section:SetEmoji(e)
+    if not self._emoji then return end
+    self._emoji.Text = (e ~= nil and e ~= false) and tostring(e) or ""
+    self._layoutHeader()
 end
 
 function Section:IsOpen()

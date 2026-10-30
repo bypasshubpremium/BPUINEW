@@ -1458,7 +1458,9 @@ local function fitWrapped(label, minH)
             local cur = label.Size.Y.Offset
             if fits == true then
                 local tb = label.TextBounds.Y
-                if tb and tb > 0 then target = math.max(minH, math.ceil(tb)) end
+                local ts = effectiveScale(label)
+                if not ts or ts <= 0 then ts = 1 end
+                if tb and tb > 0 then target = math.max(minH, math.ceil(tb / ts - 0.01)) end
             else
                 local sc = effectiveScale(label)
                 if not sc or sc <= 0 then sc = 1 end
